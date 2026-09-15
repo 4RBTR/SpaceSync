@@ -1,0 +1,230 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { useApi } from '@/lib/hooks';
+import { apiClient } from '@/lib/api';
+import { Container, Card, CardHeader, CardTitle, CardContent, Section } from '@/components/Layout';
+import { Input, Form, FormRow, Select } from '@/components/Form';
+import { Button } from '@/components/Button';
+import { Alert } from '@/components/Alert';
+import { formatCurrency, calculateTotalPrice, formatDate } from '@/lib/utils';
+
+export default function BookingPage() {
+  const router = useRouter();
+  const params = useParams();
+  const spaceId = params.id as string;
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push(`/login?redirect=/booking/${spaceId}`);
+    }
+  }, [isAuthenticated, authLoading, router, spaceId]);
+
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    tanggal_reservasi: '',
+    jam_mulai: '',
+    durasi_jam: 1,
+    id_diskon: '',
+  });
+
+  const { data: space } = useApi(() => apiClient.getSpaceDetail(spaceId), isAuthenticated);
+  const { data: discounts } = useApi(() => apiClient.getActiveDiskon(), isAuthenticated);
+
+  const discountOptions = discounts?.map((d: any) => ({
+    value: d.id,
+    label: `${d.nama_diskon} (${d.persentase_diskon}%)`,
+  })) || [];
+
+  const selectedDiscount = discounts?.find((d: any) => d.id === formData.id_diskon);
+  const totalPrice = calculateTotalPrice(
+    space?.harga_per_jam || 0,
+    parseInt(formData.durasi_jam.toString()),
+    selectedDiscount?.persentase_diskon
+  );
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === 'durasi_jam' ? parseInt(value) : value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!formData.tanggal_reservasi || !formData.jam_mulai || !formData.durasi_jam) {
+      setError('Semua field wajib diisi');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = await apiClient.createReservation({
+        id_space: spaceId,
+        tanggal_reservasi: formData.tanggal_reservasi,
+        jam_mulai: formData.jam_mulai,
+        durasi_jam: formData.durasi_jam,
+        id_diskon: formData.id_diskon || undefined,
+      });
+
+      if (response.status) {
+        router.push(`/reservasi/${response.data.id}`);
+      } else {
+        setError(response.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Booking gagal. Silakan coba lagi.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen py-8">
+      <Container className="max-w-4xl">
+        <Section title="Pesan Ruangan">
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Form */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Detail Pemesanan</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {error && <Alert message={error} type="error" className="mb-6" />}
+
+                  <Form onSubmit={handleSubmit}>
+                    <FormRow cols={2}>
+                      <Input
+                        label="Tanggal Reservasi"
+                        name="tanggal_reservasi"
+                        type="date"
+                        value={formData.tanggal_reservasi}
+                        onChange={handleChange}
+                        required
+                        min={formatDate(new Date())}
+                      />
+
+                      <Input
+                        label="Jam Mulai"
+                        name="jam_mulai"
+                        type="time"
+                        value={formData.jam_mulai}
+                        onChange={handleChange}
+                        required
+                      />
+                    </FormRow>
+
+                    <FormRow cols={2}>
+                      <Input
+                        label="Durasi (Jam)"
+                        name="durasi_jam"
+                        type="number"
+                        min="1"
+                        max="24"
+                        value={formData.durasi_jam}
+                        onChange={handleChange}
+                        required
+                      />
+
+                      <Select
+                        label="Kode Promo (Opsional)"
+                        name="id_diskon"
+                        value={formData.id_diskon}
+                        onChange={handleChange}
+                        options={[
+                          { value: '', label: 'Tidak ada promo' },
+                          ...discountOptions,
+                        ]}
+                      />
+                    </FormRow>
+
+                    <Button
+                      type="submit"
+                      isLoading={isSubmitting}
+                      className="w-full"
+                      size="lg"
+                    >
+                      Konfirmasi Pemesanan
+                    </Button>
+                  </Form>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Ringkasan</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Space Info */}
+                <div className="mb-6">
+                  <p className="text-gray-600 text-sm mb-2">Ruangan</p>
+                  <p className="font-bold text-lg text-gray-900">{space?.nama_space}</p>
+                  <p className="text-sm text-gray-600">{space?.tipe_space}</p>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Harga/Jam:</span>
+                    <span className="font-semibold">
+                      {formatCurrency(space?.harga_per_jam || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Durasi:</span>
+                    <span className="font-semibold">{formData.durasi_jam} jam</span>
+                  </div>
+                  {selectedDiscount && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Diskon ({selectedDiscount.persentase_diskon}%):</span>
+                      <span className="font-semibold">
+                        -{formatCurrency(
+                          (space?.harga_per_jam || 0) *
+                            formData.durasi_jam *
+                            (selectedDiscount.persentase_diskon / 100)
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Total */}
+                <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                  <p className="text-gray-600 text-sm mb-1">Total Harga</p>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {formatCurrency(totalPrice)}
+                  </p>
+                </div>
+
+                {/* Facilities */}
+                {space?.fasilitas && (
+                  <div>
+                    <p className="text-gray-600 text-sm mb-2 font-semibold">Fasilitas:</p>
+                    <ul className="space-y-1">
+                      {space.fasilitas.split(',').map((fac: string, idx: number) => (
+                        <li key={idx} className="text-sm text-gray-600 flex items-center">
+                          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-2"></span>
+                          {fac.trim()}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </Section>
+      </Container>
+    </div>
+  );
+}
