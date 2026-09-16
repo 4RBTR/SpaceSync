@@ -9,7 +9,7 @@ import { Container, Card, CardHeader, CardTitle, CardContent, Section, Grid, Pag
 import { Button } from '@/components/Button';
 import { Input, Select } from '@/components/Form';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getImageUrl } from '@/lib/utils';
 
 export default function SpacesPage() {
   const router = useRouter();
@@ -107,17 +107,11 @@ export default function SpacesPage() {
                   <Card key={space.id} className="flex flex-col p-0 overflow-hidden group">
                     {/* Image with Badges */}
                     <div className="relative w-full aspect-[4/3] bg-slate-100 overflow-hidden">
-                      {space.foto ? (
-                        <img
-                          src={space.foto}
-                          alt={space.nama_space}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-400 font-medium">
-                          Foto Ruangan
-                        </div>
-                      )}
+                      <img
+                        src={getImageUrl(space.foto, 'space')}
+                        alt={space.nama_space}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
                       
                       {/* Floating Badges */}
                       <div className="absolute top-3 left-3 flex gap-2">

@@ -164,12 +164,16 @@ export function getUpcomingReservations(reservations: any[]): any[] {
     );
 }
 
-export function getImageUrl(path?: string): string {
-  if (!path) return '';
+export function getImageUrl(path?: string, fallbackType: 'space' | 'avatar' = 'space'): string {
+  if (!path) {
+    return fallbackType === 'avatar'
+      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80'
+      : 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80';
+  }
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
     return path;
   }
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://learn.smktelkom-mlg.sch.id/coworking';
   const cleanBase = baseUrl.replace(/\/+$/, '');
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${cleanBase}${cleanPath}`;
