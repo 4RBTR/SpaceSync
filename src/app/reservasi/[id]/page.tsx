@@ -8,7 +8,7 @@ import { Container, Card, CardHeader, CardTitle, CardContent, Section } from '@/
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Alert';
 import Link from 'next/link';
-import { formatDate, formatCurrency, getStatusColor, getDayName } from '@/lib/utils';
+import { formatDate, formatCurrency, getStatusColor, formatStatusLabel, getDayName, getReservationPrice, getReservationSpace } from '@/lib/utils';
 
 export default function ReservationDetailPage() {
   const params = useParams();
@@ -42,7 +42,7 @@ export default function ReservationDetailPage() {
     return (
       <div className="min-h-screen py-8">
         <Container>
-          <div className="text-center">
+          <div className="text-center py-12">
             <p className="text-gray-600">Memuat data reservasi...</p>
           </div>
         </Container>
@@ -56,7 +56,7 @@ export default function ReservationDetailPage() {
         <Container>
           <Card>
             <div className="text-center py-12">
-              <p className="text-gray-600 mb-4">Reservasi tidak ditemukan</p>
+              <p className="text-gray-600 mb-4">Reservasi #{reservationId} tidak ditemukan</p>
               <Link href="/reservasi">
                 <Button>Kembali ke Reservasi</Button>
               </Link>
@@ -67,7 +67,15 @@ export default function ReservationDetailPage() {
     );
   }
 
-  const tanggalReservasi = new Date(reservation.tanggal_reservasi);
+  const spaceObj = getReservationSpace(reservation);
+  const totalHarga = getReservationPrice(reservation);
+  const statusLabel = formatStatusLabel(reservation.status);
+  const jamMulai = reservation.jam_mulai || '10:00';
+  const durasiJam = Number(reservation.durasi_jam) || 1;
+  const startHour = parseInt(jamMulai.split(':')[0]) || 10;
+  const startMinute = jamMulai.split(':')[1] || '00';
+  const endHour = (startHour + durasiJam) % 24;
+  const jamSelesai = `${String(endHour).padStart(2, '0')}:${startMinute}`;
 
   return (
     <div className="min-h-screen py-8">
@@ -82,14 +90,14 @@ export default function ReservationDetailPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="text-2xl">
-                        {reservation.space?.nama_space}
+                        {spaceObj?.nama_space || reservation.nama_space || 'Ruangan Coworking'}
                       </CardTitle>
-                      <p className="text-gray-600 mt-2">
-                        {reservation.space?.tipe_space}
+                      <p className="text-gray-600 mt-2 capitalize">
+                        {spaceObj?.tipe_space || spaceObj?.tipe || 'Coworking Space'}
                       </p>
                     </div>
                     <Badge className={getStatusColor(reservation.status)}>
-                      {reservation.status}
+                      {statusLabel}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -115,21 +123,21 @@ export default function ReservationDetailPage() {
                     <div>
                       <p className="text-gray-600 text-sm mb-1">Waktu Mulai</p>
                       <p className="font-semibold text-lg">
-                        {reservation.jam_mulai}
+                        {jamMulai} WIB
                       </p>
                     </div>
 
                     <div>
                       <p className="text-gray-600 text-sm mb-1">Durasi</p>
                       <p className="font-semibold text-lg">
-                        {reservation.durasi_jam} jam
+                        {durasiJam} jam
                       </p>
                     </div>
 
                     <div>
                       <p className="text-gray-600 text-sm mb-1">Waktu Selesai</p>
                       <p className="font-semibold text-lg">
-                        {`${parseInt(reservation.jam_mulai.split(':')[0]) + reservation.durasi_jam}:${reservation.jam_mulai.split(':')[1]}`}
+                        {jamSelesai} WIB
                       </p>
                     </div>
                   </div>
@@ -146,38 +154,34 @@ export default function ReservationDetailPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Harga per jam</span>
                       <span className="font-semibold">
-                        {formatCurrency(reservation.space?.harga_per_jam || 0)}
+                        {formatCurrency(spaceObj?.harga_per_jam || 0)}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Durasi ({reservation.durasi_jam} jam)</span>
+                      <span className="text-gray-600">Durasi ({durasiJam} jam)</span>
                       <span className="font-semibold">
-                        {formatCurrency(
-                          (reservation.space?.harga_per_jam || 0) * reservation.durasi_jam
-                        )}
+                        {formatCurrency((spaceObj?.harga_per_jam || 0) * durasiJam)}
                       </span>
                     </div>
 
                     {reservation.diskon && (
-                      <>
-                        <div className="flex justify-between text-sm text-green-600 py-3 border-t border-gray-200">
-                          <span>Diskon ({reservation.diskon.persentase_diskon}%)</span>
-                          <span className="font-semibold">
-                            -{formatCurrency(
-                              ((reservation.space?.harga_per_jam || 0) *
-                                reservation.durasi_jam *
-                                reservation.diskon.persentase_diskon) /
-                                100
-                            )}
-                          </span>
-                        </div>
-                      </>
+                      <div className="flex justify-between text-sm text-green-600 py-3 border-t border-gray-200">
+                        <span>Diskon ({reservation.diskon.persentase_diskon}%)</span>
+                        <span className="font-semibold">
+                          -{formatCurrency(
+                            ((spaceObj?.harga_per_jam || 0) *
+                              durasiJam *
+                              reservation.diskon.persentase_diskon) /
+                              100
+                          )}
+                        </span>
+                      </div>
                     )}
 
-                    <div className="flex justify-between text-lg font-bold bg-blue-50 p-3 rounded-lg mt-4">
-                      <span>Total</span>
-                      <span className="text-blue-600">
-                        {formatCurrency(reservation.total_harga)}
+                    <div className="flex justify-between text-lg font-bold bg-indigo-50 p-4 rounded-xl mt-4">
+                      <span>Total Biaya</span>
+                      <span className="text-indigo-600 font-sans">
+                        {formatCurrency(totalHarga)}
                       </span>
                     </div>
                   </div>
@@ -185,16 +189,16 @@ export default function ReservationDetailPage() {
               </Card>
 
               {/* Space Facilities */}
-              {reservation.space?.fasilitas && (
+              {spaceObj?.fasilitas && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Fasilitas Ruangan</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
-                      {reservation.space.fasilitas.split(',').map((fac: string, idx: number) => (
+                      {spaceObj.fasilitas.split(',').map((fac: string, idx: number) => (
                         <li key={idx} className="flex items-center text-gray-700">
-                          <span className="w-2 h-2 bg-blue-600 rounded-full mr-3"></span>
+                          <span className="w-2 h-2 bg-indigo-600 rounded-full mr-3"></span>
                           {fac.trim()}
                         </li>
                       ))}
@@ -218,10 +222,8 @@ export default function ReservationDetailPage() {
                     </Button>
                   </Link>
 
-                  {(reservation.status === 'Belum Dikonfirmasi' ||
-                    reservation.status === 'pending' ||
-                    reservation.status?.toLowerCase()?.includes('belum') ||
-                    reservation.status?.toLowerCase()?.includes('pend')) && (
+                  {(reservation.status === 'belum_dikonfirm' ||
+                    statusLabel === 'Belum Dikonfirmasi') && (
                     <Button
                       variant="danger"
                       className="w-full"
@@ -233,7 +235,7 @@ export default function ReservationDetailPage() {
 
                   <Link href="/reservasi" className="block">
                     <Button variant="outline" className="w-full">
-                      Kembali
+                      Kembali ke List
                     </Button>
                   </Link>
                 </CardContent>
@@ -247,21 +249,15 @@ export default function ReservationDetailPage() {
                 <CardContent>
                   <div className="space-y-3 text-sm">
                     <div>
-                      <p className="text-gray-600 mb-1">Nama</p>
+                      <p className="text-gray-600 mb-1">Pengelola</p>
                       <p className="font-semibold">
-                        {reservation.space?.coworking_space?.nama_coworking}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 mb-1">Alamat</p>
-                      <p className="font-semibold">
-                        {reservation.space?.coworking_space?.alamat}
+                        {reservation.owner?.nama_coworking || spaceObj?.coworking_space?.nama_coworking || 'SpaceSync Partner'}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-600 mb-1">Telepon</p>
                       <p className="font-semibold">
-                        {reservation.space?.coworking_space?.no_telepon}
+                        {reservation.owner?.telp || spaceObj?.coworking_space?.no_telepon || '-'}
                       </p>
                     </div>
                   </div>
@@ -272,8 +268,8 @@ export default function ReservationDetailPage() {
               <Card>
                 <CardContent className="text-center py-6">
                   <p className="text-gray-600 text-sm mb-2">Kode Reservasi</p>
-                  <p className="font-mono font-bold text-lg break-all">
-                    {reservation.id}
+                  <p className="font-mono font-bold text-lg text-indigo-600 break-all">
+                    #RES-{reservation.id}
                   </p>
                 </CardContent>
               </Card>

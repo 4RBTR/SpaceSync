@@ -170,20 +170,35 @@ class AdminApi {
   }
 
   async getAdminReservationDetail(id: string): Promise<ApiResponse> {
-    return axiosClient.instance
-      .get(`/api/admin/reservasi/${id}`)
-      .then((res) => res.data);
+    try {
+      return await axiosClient.instance
+        .get(`/api/reservasi/${id}`)
+        .then((res) => res.data);
+    } catch (err) {
+      return axiosClient.instance
+        .get(`/api/admin/reservasi/${id}`)
+        .then((res) => res.data);
+    }
   }
 
   async confirmReservation(id: string): Promise<ApiResponse> {
     return axiosClient.instance
-      .patch(`/api/admin/reservasi/${id}/status`, { status: 'Disetujui' })
+      .patch(`/api/admin/reservasi/${id}/status`, { status: 'disetujui' })
       .then((res) => res.data);
   }
 
   async updateReservationStatus(id: string, status: string): Promise<ApiResponse> {
+    const statusMap: Record<string, string> = {
+      'Belum Dikonfirmasi': 'belum_dikonfirm',
+      'Disetujui': 'disetujui',
+      'Aktif/Digunakan': 'aktif',
+      'Aktif': 'aktif',
+      'Selesai': 'selesai',
+      'Dibatalkan': 'dibatalkan',
+    };
+    const backendStatus = statusMap[status] || status.toLowerCase();
     return axiosClient.instance
-      .patch(`/api/admin/reservasi/${id}/status`, { status })
+      .patch(`/api/admin/reservasi/${id}/status`, { status: backendStatus })
       .then((res) => res.data);
   }
 

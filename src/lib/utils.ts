@@ -213,3 +213,28 @@ export function getImageUrl(pathOrUrl?: string, fallbackType: 'space' | 'avatar'
   return `https://learn.smktelkom-mlg.sch.id/coworking/uploads/${folder}/${filename}`;
 }
 
+export function getReservationPrice(reservation: any): number {
+  if (!reservation) return 0;
+  if (reservation.total_harga && Number(reservation.total_harga) > 0) {
+    return Number(reservation.total_harga);
+  }
+  if (reservation.price_breakdown?.total_harga && Number(reservation.price_breakdown.total_harga) > 0) {
+    return Number(reservation.price_breakdown.total_harga);
+  }
+  if (reservation.detail_reservasi?.[0]?.total_harga && Number(reservation.detail_reservasi[0].total_harga) > 0) {
+    return Number(reservation.detail_reservasi[0].total_harga);
+  }
+  const space = getReservationSpace(reservation);
+  const hargaPerJam = Number(space?.harga_per_jam) || 0;
+  const durasi = Number(reservation.durasi_jam) || 1;
+  return hargaPerJam * durasi;
+}
+
+export function getReservationSpace(reservation: any): any {
+  if (!reservation) return null;
+  if (reservation.space) return reservation.space;
+  if (reservation.detail_reservasi?.[0]?.space) return reservation.detail_reservasi[0].space;
+  return null;
+}
+
+

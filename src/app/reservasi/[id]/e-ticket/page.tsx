@@ -9,7 +9,7 @@ import { Container, Card } from '@/components/Layout';
 import { Button } from '@/components/Button';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
-import { formatDate, formatCurrency, getDayName } from '@/lib/utils';
+import { formatDate, formatCurrency, getDayName, formatStatusLabel, getReservationPrice, getReservationSpace } from '@/lib/utils';
 
 export default function ETicketPage() {
   const params = useParams();
@@ -60,7 +60,7 @@ export default function ETicketPage() {
     return (
       <div className="min-h-screen py-8">
         <Container>
-          <div className="text-center">
+          <div className="text-center py-12">
             <p className="text-gray-600">Memuat e-ticket...</p>
           </div>
         </Container>
@@ -85,8 +85,12 @@ export default function ETicketPage() {
     );
   }
 
+  const spaceObj = getReservationSpace(reservation);
+  const totalBiaya = getReservationPrice(reservation);
+  const statusLabel = formatStatusLabel(reservation.status);
+
   return (
-    <div className="min-h-screen py-8 bg-gradient-to-br from-blue-50 to-blue-100">
+    <div className="min-h-screen py-8 bg-gradient-to-br from-indigo-50 to-blue-100">
       <Container className="max-w-2xl">
         {/* Controls */}
         <div className="flex gap-3 mb-6 flex-wrap">
@@ -100,23 +104,23 @@ export default function ETicketPage() {
         </div>
 
         {/* E-Ticket */}
-        <div ref={printRef} className="bg-white p-8 rounded-xl shadow-2xl">
+        <div ref={printRef} className="bg-white p-8 rounded-2xl shadow-2xl border border-indigo-100">
           {/* Header */}
-          <div className="text-center mb-8 pb-6 border-b-2 border-blue-600">
-            <div className="inline-block w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-              <span className="text-white font-bold text-lg">S</span>
+          <div className="text-center mb-8 pb-6 border-b-2 border-indigo-600">
+            <div className="inline-block w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-3 text-white font-black text-2xl shadow-md">
+              S
             </div>
-            <h1 className="text-3xl font-bold text-blue-600 mb-2">SPACESYNC</h1>
-            <p className="text-gray-600">Smart Coworking Space Reservation</p>
+            <h1 className="text-3xl font-extrabold text-indigo-600 tracking-tight">SPACESYNC</h1>
+            <p className="text-slate-500 text-sm font-medium">Smart Coworking Space Reservation System</p>
           </div>
 
           {/* Title */}
           <div className="text-center mb-8">
-            <div className="inline-block bg-blue-100 text-blue-800 px-6 py-2 rounded-full font-bold mb-4">
+            <div className="inline-block bg-indigo-100 text-indigo-800 px-6 py-2 rounded-full font-bold text-sm tracking-wide">
               E-TICKET / BUKTI RESERVASI
             </div>
-            <p className="text-gray-600 text-sm mt-4">
-              Tunjukkan bukti reservasi ini saat check-in di lokasi
+            <p className="text-slate-600 text-xs mt-3">
+              Tunjukkan bukti reservasi ini saat check-in di lokasi coworking space
             </p>
           </div>
 
@@ -124,109 +128,110 @@ export default function ETicketPage() {
             {/* Left - Info */}
             <div className="space-y-4">
               <div>
-                <p className="text-gray-600 text-xs font-semibold mb-1">KODE RESERVASI</p>
-                <p className="font-mono text-lg font-bold text-blue-600 break-all">
-                  {reservation.id}
+                <p className="text-slate-500 text-xs font-semibold mb-1">KODE RESERVASI</p>
+                <p className="font-mono text-xl font-bold text-indigo-600 break-all">
+                  #RES-{reservation.id}
                 </p>
               </div>
 
               <div>
-                <p className="text-gray-600 text-xs font-semibold mb-1">RUANGAN</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {reservation.space?.nama_space}
+                <p className="text-slate-500 text-xs font-semibold mb-1">RUANGAN</p>
+                <p className="text-lg font-bold text-slate-900">
+                  {spaceObj?.nama_space || reservation.nama_space || 'Ruangan Coworking'}
                 </p>
-                <p className="text-sm text-gray-600">{reservation.space?.tipe_space}</p>
+                <p className="text-xs text-slate-500 capitalize">{spaceObj?.tipe_space || spaceObj?.tipe || 'Coworking Space'}</p>
               </div>
 
               <div>
-                <p className="text-gray-600 text-xs font-semibold mb-1">ATAS NAMA</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {reservation.member?.nama_member}
+                <p className="text-slate-500 text-xs font-semibold mb-1">ATAS NAMA</p>
+                <p className="text-lg font-bold text-slate-900">
+                  {reservation.member?.nama_member || 'Member SpaceSync'}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
                 <div>
-                  <p className="text-gray-600 text-xs font-semibold mb-1">TANGGAL</p>
-                  <p className="font-bold text-gray-900">
+                  <p className="text-slate-500 text-xs font-semibold mb-1">TANGGAL</p>
+                  <p className="font-bold text-slate-900 text-sm">
                     {formatDate(reservation.tanggal_reservasi)}
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-slate-500">
                     {getDayName(reservation.tanggal_reservasi)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-xs font-semibold mb-1">JAM MULAI</p>
-                  <p className="font-bold text-gray-900">{reservation.jam_mulai}</p>
+                  <p className="text-slate-500 text-xs font-semibold mb-1">JAM MULAI</p>
+                  <p className="font-bold text-slate-900 text-sm">{reservation.jam_mulai || '10:00'} WIB</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-gray-600 text-xs font-semibold mb-1">DURASI</p>
-                  <p className="font-bold text-gray-900">{reservation.durasi_jam} jam</p>
+                  <p className="text-slate-500 text-xs font-semibold mb-1">DURASI</p>
+                  <p className="font-bold text-slate-900 text-sm">{reservation.durasi_jam || 1} jam</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-xs font-semibold mb-1">TOTAL HARGA</p>
-                  <p className="font-bold text-green-600">
-                    {formatCurrency(reservation.total_harga)}
+                  <p className="text-slate-500 text-xs font-semibold mb-1">TOTAL BIAYA</p>
+                  <p className="font-bold text-emerald-600 text-sm font-sans">
+                    {formatCurrency(totalBiaya)}
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Right - QR Code */}
-            <div className="flex flex-col items-center justify-center bg-gray-50 p-6 rounded-lg">
-              <QRCodeSVG
-                value={JSON.stringify({
-                  id: reservation.id,
-                  space: reservation.space?.nama_space,
-                  date: reservation.tanggal_reservasi,
-                  time: reservation.jam_mulai,
-                  member: reservation.member?.nama_member,
-                })}
-                size={200}
-                level="H"
-                includeMargin
-              />
-              <p className="text-center text-xs text-gray-600 mt-4">
-                Scan QR code untuk check-in
+            <div className="flex flex-col items-center justify-center bg-slate-50 p-6 rounded-2xl border border-slate-200">
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+                <QRCodeSVG
+                  value={JSON.stringify({
+                    id: reservation.id,
+                    space: spaceObj?.nama_space || reservation.nama_space,
+                    date: reservation.tanggal_reservasi,
+                    time: reservation.jam_mulai,
+                    member: reservation.member?.nama_member,
+                  })}
+                  size={180}
+                  level="H"
+                  includeMargin
+                />
+              </div>
+              <p className="text-center text-xs font-semibold text-slate-600 mt-4">
+                Scan QR code untuk check-in di lokasi
               </p>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="pt-6 border-t border-gray-200">
-            <div className="grid md:grid-cols-3 gap-4 text-xs text-gray-600 mb-6">
+          <div className="pt-6 border-t border-slate-200">
+            <div className="grid md:grid-cols-3 gap-4 text-xs text-slate-600 mb-6">
               <div>
-                <p className="font-semibold text-gray-900">LOKASI</p>
-                <p>{reservation.space?.coworking_space?.nama_coworking}</p>
-                <p className="text-xs">
-                  {reservation.space?.coworking_space?.alamat}
+                <p className="font-bold text-slate-900 mb-1">LOKASI</p>
+                <p className="font-medium text-slate-800">{reservation.owner?.nama_coworking || spaceObj?.coworking_space?.nama_coworking || 'SpaceSync Partner'}</p>
+                <p className="text-[11px] text-slate-500">
+                  {reservation.owner?.alamat || spaceObj?.coworking_space?.alamat || 'Lokasi Coworking'}
                 </p>
               </div>
               <div>
-                <p className="font-semibold text-gray-900">TELEPON</p>
-                <p>{reservation.space?.coworking_space?.no_telepon}</p>
+                <p className="font-bold text-slate-900 mb-1">TELEPON</p>
+                <p className="font-medium text-slate-800">{reservation.owner?.telp || spaceObj?.coworking_space?.no_telepon || '-'}</p>
               </div>
               <div>
-                <p className="font-semibold text-gray-900">STATUS</p>
-                <p className="font-bold text-blue-600">{reservation.status}</p>
+                <p className="font-bold text-slate-900 mb-1">STATUS</p>
+                <p className="font-bold text-indigo-600">{statusLabel}</p>
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-lg text-xs text-gray-700">
-              <p className="font-semibold mb-2">Catatan Penting:</p>
-              <ul className="list-disc list-inside space-y-1">
+            <div className="bg-indigo-50/70 p-4 rounded-xl text-xs text-slate-700 border border-indigo-100">
+              <p className="font-bold text-indigo-900 mb-1.5">Catatan Penting:</p>
+              <ul className="list-disc list-inside space-y-1 text-slate-700">
                 <li>Harap datang 15 menit sebelum jam yang dijadwalkan</li>
-                <li>Tunjukkan e-ticket ini saat check-in</li>
-                <li>Jika ada perubahan, hubungi admin space</li>
-                <li>Pembatalan hanya dapat dilakukan sebelum waktu reservasi</li>
+                <li>Tunjukkan e-ticket QR ini kepada admin saat check-in</li>
+                <li>Pembatalan hanya dapat dilakukan jika belum dikonfirmasi admin</li>
               </ul>
             </div>
 
-            <p className="text-center text-xs text-gray-500 mt-6">
-              Generated by SpaceSync • {new Date().toLocaleString('id-ID')}
+            <p className="text-center text-[11px] text-slate-400 mt-6">
+              Generated by SpaceSync System • {new Date().toLocaleString('id-ID')}
             </p>
           </div>
         </div>

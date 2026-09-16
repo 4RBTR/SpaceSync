@@ -6,12 +6,12 @@ import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
 import { apiClient } from '@/lib/api';
 import { Container, Card, CardHeader, CardTitle, CardContent, Section } from '@/components/Layout';
-import { Select, Form } from '@/components/Form';
+import { Select } from '@/components/Form';
 import { Button } from '@/components/Button';
 import { Badge, Alert } from '@/components/Alert';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
-import { formatDate, formatCurrency, getStatusColor, formatStatusLabel, getDayName } from '@/lib/utils';
+import { formatDate, formatCurrency, getStatusColor, formatStatusLabel, getDayName, getReservationPrice, getReservationSpace } from '@/lib/utils';
 
 export default function AdminReservasiDetailPage() {
   const params = useParams();
@@ -24,12 +24,12 @@ export default function AdminReservasiDetailPage() {
   const [success, setSuccess] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { data: detailData, isLoading: detailLoading } = useApi(
+  const { data: detailData, isLoading: detailLoading, execute: refetchDetail } = useApi(
     () => apiClient.getAdminReservationDetail(reservationId),
     isAuthenticated
   );
 
-  const { data: listData, isLoading: listLoading } = useApi(
+  const { data: listData, isLoading: listLoading, execute: refetchList } = useApi(
     () => apiClient.getAdminReservations({ limit: 100 }),
     isAuthenticated
   );
@@ -38,23 +38,32 @@ export default function AdminReservasiDetailPage() {
   const isLoading = detailLoading && listLoading;
 
   const statuses = [
-    { value: '', label: 'Pilih Status' },
-    { value: 'Belum Dikonfirmasi', label: 'Belum Dikonfirmasi' },
-    { value: 'Disetujui', label: 'Disetujui' },
-    { value: 'Aktif/Digunakan', label: 'Aktif/Digunakan' },
-    { value: 'Selesai', label: 'Selesai' },
-    { value: 'Dibatalkan', label: 'Dibatalkan' },
+    { value: '', label: 'Pilih Status Status' },
+    { value: 'belum_dikonfirm', label: 'Belum Dikonfirmasi' },
+    { value: 'disetujui', label: 'Disetujui' },
+    { value: 'aktif', label: 'Aktif/Digunakan' },
+    { value: 'selesai', label: 'Selesai' },
+    { value: 'dibatalkan', label: 'Dibatalkan' },
   ];
+
+  const refreshData = () => {
+    refetchDetail();
+    refetchList();
+  };
 
   const handleConfirm = async () => {
     try {
       setIsProcessing(true);
       setError('');
-      await apiClient.confirmReservation(reservationId);
-      setSuccess('Reservasi berhasil dikonfirmasi');
-    } catch (err) {
-      // Local status update fallback
-      setSuccess('Reservasi berhasil dikonfirmasi');
+      const res = await apiClient.confirmReservation(reservationId);
+      if (res.status) {
+        setSuccess('Reservasi berhasil dikonfirmasi (Disetujui)');
+        refreshData();
+      } else {
+        setError(res.message || 'Gagal mengonfirmasi reservasi');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Gagal mengonfirmasi reservasi');
     } finally {
       setIsProcessing(false);
     }
@@ -65,12 +74,16 @@ export default function AdminReservasiDetailPage() {
     try {
       setIsProcessing(true);
       setError('');
-      await apiClient.updateReservationStatus(reservationId, newStatus);
-      setSuccess(`Status berhasil diubah menjadi ${newStatus}`);
-      setSelectedStatus('');
-    } catch (err) {
-      setSuccess(`Status berhasil diubah menjadi ${newStatus}`);
-      setSelectedStatus('');
+      const res = await apiClient.updateReservationStatus(reservationId, newStatus);
+      if (res.status) {
+        setSuccess(`Status reservasi berhasil diubah`);
+        setSelectedStatus('');
+        refreshData();
+      } else {
+        setError(res.message || 'Gagal mengubah status');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Gagal mengubah status');
     } finally {
       setIsProcessing(false);
     }
@@ -81,10 +94,15 @@ export default function AdminReservasiDetailPage() {
       try {
         setIsProcessing(true);
         setError('');
-        await apiClient.checkInReservation(reservationId);
-        setSuccess('Check-in berhasil. Status diubah menjadi Aktif/Digunakan');
-      } catch (err) {
-        setSuccess('Check-in berhasil. Status diubah menjadi Aktif/Digunakan');
+        const res = await apiClient.checkInReservation(reservationId);
+        if (res.status) {
+          setSuccess('Check-in berhasil! Status diubah menjadi Aktif/Digunakan.');
+          refreshData();
+        } else {
+          setError(res.message || 'Gagal melakukan check-in');
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Gagal melakukan check-in');
       } finally {
         setIsProcessing(false);
       }
@@ -96,10 +114,15 @@ export default function AdminReservasiDetailPage() {
       try {
         setIsProcessing(true);
         setError('');
-        await apiClient.checkOutReservation(reservationId);
-        setSuccess('Check-out berhasil. Status diubah menjadi Selesai');
-      } catch (err) {
-        setSuccess('Check-out berhasil. Status diubah menjadi Selesai');
+        const res = await apiClient.checkOutReservation(reservationId);
+        if (res.status) {
+          setSuccess('Check-out berhasil! Status diubah menjadi Selesai.');
+          refreshData();
+        } else {
+          setError(res.message || 'Gagal melakukan check-out');
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Gagal melakukan check-out');
       } finally {
         setIsProcessing(false);
       }
@@ -110,7 +133,7 @@ export default function AdminReservasiDetailPage() {
     return (
       <div className="min-h-screen py-8">
         <Container>
-          <div className="text-center">
+          <div className="text-center py-12">
             <p className="text-gray-600">Memuat data reservasi...</p>
           </div>
         </Container>
@@ -135,10 +158,16 @@ export default function AdminReservasiDetailPage() {
     );
   }
 
-  const spaceName = reservation.space?.nama_space || reservation.nama_space || 'Meeting Suites 1';
-  const memberName = reservation.member?.nama_member || 'Danendra Bagas Himawan';
+  const spaceObj = getReservationSpace(reservation);
+  const spaceName = spaceObj?.nama_space || reservation.nama_space || 'Meeting Room';
+  const memberName = reservation.member?.nama_member || 'Member SpaceSync';
   const statusLabel = formatStatusLabel(reservation.status);
-  const totalHarga = Number(reservation.total_harga) || ((Number(reservation.durasi_jam) || 1) * (Number(reservation.space?.harga_per_jam) || 150000));
+  const totalHarga = getReservationPrice(reservation);
+  const isPending = reservation.status === 'belum_dikonfirm' || statusLabel === 'Belum Dikonfirmasi';
+  const isApproved = reservation.status === 'disetujui' || statusLabel === 'Disetujui';
+  const isActive = reservation.status === 'aktif' || statusLabel === 'Aktif/Digunakan';
+  const isCompleted = reservation.status === 'selesai' || statusLabel === 'Selesai';
+  const isCancelled = reservation.status === 'dibatalkan' || statusLabel === 'Dibatalkan';
 
   return (
     <div className="min-h-screen py-8">
@@ -159,7 +188,7 @@ export default function AdminReservasiDetailPage() {
                         {spaceName}
                       </CardTitle>
                       <p className="text-gray-600 mt-1">
-                        Atas Nama: {memberName}
+                        Atas Nama: <span className="font-semibold text-slate-800">{memberName}</span>
                       </p>
                     </div>
                     <Badge className={getStatusColor(reservation.status)}>
@@ -178,24 +207,24 @@ export default function AdminReservasiDetailPage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <p className="text-gray-600 text-sm mb-1">Tanggal</p>
-                      <p className="font-semibold">
+                      <p className="font-semibold text-slate-900">
                         {formatDate(reservation.tanggal_reservasi)}
                       </p>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-gray-500 text-xs">
                         {getDayName(reservation.tanggal_reservasi)}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-600 text-sm mb-1">Waktu Mulai</p>
-                      <p className="font-semibold">{reservation.jam_mulai || '10:00'}</p>
+                      <p className="font-semibold text-slate-900">{reservation.jam_mulai || '10:00'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600 text-sm mb-1">Durasi</p>
-                      <p className="font-semibold">{reservation.durasi_jam || 1} jam</p>
+                      <p className="font-semibold text-slate-900">{reservation.durasi_jam || 1} jam</p>
                     </div>
                     <div>
                       <p className="text-gray-600 text-sm mb-1">Total Harga</p>
-                      <p className="font-semibold text-green-600">
+                      <p className="font-bold text-lg text-emerald-600">
                         {formatCurrency(totalHarga)}
                       </p>
                     </div>
@@ -210,25 +239,25 @@ export default function AdminReservasiDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Nama:</span>
-                      <span className="font-semibold">
-                        {reservation.member?.nama_member}
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-gray-600">Nama Lengkap:</span>
+                      <span className="font-semibold text-slate-900">
+                        {reservation.member?.nama_member || '-'}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Email:</span>
-                      <span className="font-semibold">{reservation.member?.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Telepon:</span>
-                      <span className="font-semibold">
-                        {reservation.member?.no_telepon}
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-gray-600">No. Telepon / WhatsApp:</span>
+                      <span className="font-semibold text-slate-900">
+                        {reservation.member?.telp || reservation.member?.no_telepon || '-'}
                       </span>
                     </div>
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-gray-600">Instansi / Organisasi:</span>
+                      <span className="font-semibold text-slate-900">{reservation.member?.instansi || '-'}</span>
+                    </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Instansi:</span>
-                      <span className="font-semibold">{reservation.member?.instansi}</span>
+                      <span className="text-gray-600">Alamat:</span>
+                      <span className="font-semibold text-slate-900">{reservation.member?.alamat || '-'}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -240,70 +269,65 @@ export default function AdminReservasiDetailPage() {
               {/* Status Management */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Kelola Status</CardTitle>
+                  <CardTitle>Kontrol Status Reservasi</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {reservation.status === 'Belum Dikonfirmasi' && (
+                  {isPending && (
                     <Button
                       onClick={handleConfirm}
                       isLoading={isProcessing}
-                      className="w-full"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      Konfirmasi Reservasi
+                      Konfirmasi (Setujui)
                     </Button>
                   )}
 
-                  {reservation.status === 'Disetujui' && (
+                  {isApproved && (
                     <Button
                       onClick={handleCheckIn}
                       isLoading={isProcessing}
-                      className="w-full"
-                      variant="success"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                     >
-                      Check-In Member
+                      Proses Check-In Member
                     </Button>
                   )}
 
-                  {reservation.status === 'Aktif/Digunakan' && (
+                  {isActive && (
                     <Button
                       onClick={handleCheckOut}
                       isLoading={isProcessing}
-                      className="w-full"
-                      variant="success"
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
                     >
-                      Check-Out Member
+                      Proses Check-Out Member
                     </Button>
                   )}
 
-                  {reservation.status !== 'Selesai' &&
-                    reservation.status !== 'Dibatalkan' && (
-                      <>
-                        <div className="border-t border-gray-200 pt-4">
-                          <label className="block text-sm font-medium text-gray-900 mb-2">
-                            Ubah Status Lainnya
-                          </label>
-                          <Select
-                            options={statuses}
-                            value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.target.value)}
-                          />
-                          {selectedStatus && (
-                            <Button
-                              onClick={() => handleStatusChange(selectedStatus)}
-                              isLoading={isProcessing}
-                              className="w-full mt-2"
-                              variant="outline"
-                            >
-                              Ubah Status
-                            </Button>
-                          )}
-                        </div>
-                      </>
-                    )}
+                  {!isCompleted && !isCancelled && (
+                    <div className="border-t border-gray-200 pt-4 mt-2">
+                      <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                        Ubah Status Manual
+                      </label>
+                      <Select
+                        options={statuses}
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                      />
+                      {selectedStatus && (
+                        <Button
+                          onClick={() => handleStatusChange(selectedStatus)}
+                          isLoading={isProcessing}
+                          className="w-full mt-2"
+                          variant="outline"
+                        >
+                          Terapkan Perubahan
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
-                  <Link href="/admin/reservasi" className="block">
+                  <Link href="/admin/reservasi" className="block pt-2">
                     <Button variant="outline" className="w-full">
-                      Kembali
+                      Kembali ke Daftar
                     </Button>
                   </Link>
                 </CardContent>
@@ -312,23 +336,23 @@ export default function AdminReservasiDetailPage() {
               {/* Reservation Code & QR Code */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Kode & QR Code E-Ticket</CardTitle>
+                  <CardTitle className="text-center">Kode & QR Code E-Ticket</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center text-center">
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm mb-3">
+                  <div className="p-4 bg-white border-2 border-indigo-100 rounded-2xl shadow-sm mb-3">
                     <QRCodeSVG
                       value={JSON.stringify({
                         id: reservation.id,
-                        space: reservation.space?.nama_space,
+                        space: spaceName,
                         date: reservation.tanggal_reservasi,
                         time: reservation.jam_mulai,
-                        member: reservation.member?.nama_member,
+                        member: memberName,
                       })}
-                      size={150}
+                      size={160}
                       level="H"
                     />
                   </div>
-                  <p className="font-mono text-xs font-bold break-all text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 mb-1">
+                  <p className="font-mono text-sm font-bold break-all text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 mb-1">
                     #RES-{reservation.id}
                   </p>
                   <p className="text-[11px] text-slate-500">Scan QR Code ini untuk verifikasi check-in</p>
