@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { apiClient } from '@/lib/api';
+import { apiClient, uploadApi } from '@/lib/api';
 import { Container, Card, Section } from '@/components/Layout';
 import { Input, Form, FormRow, FileInput } from '@/components/Form';
 import { Button } from '@/components/Button';
@@ -62,6 +62,14 @@ export default function AdminAddMemberPage() {
 
     try {
       setIsSubmitting(true);
+      let fotoUrl = '';
+      if (formData.foto) {
+        const uploadRes = await uploadApi.uploadImage(formData.foto, 'members');
+        if (uploadRes.status && uploadRes.data) {
+          fotoUrl = uploadRes.data.url || uploadRes.data.path || uploadRes.data.filename || uploadRes.data.fileName || (typeof uploadRes.data === 'string' ? uploadRes.data : '');
+        }
+      }
+
       const res = await apiClient.createAdminMember({
         nama_member: formData.nama_member,
         email: formData.email,
@@ -70,7 +78,7 @@ export default function AdminAddMemberPage() {
         username: formData.username,
         password: formData.password,
         alamat: formData.alamat || 'Malang',
-        foto: formData.foto || undefined,
+        foto: fotoUrl || undefined,
       });
 
       if (res.status) {

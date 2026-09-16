@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
-import { apiClient } from '@/lib/api';
+import { apiClient, uploadApi } from '@/lib/api';
 import { Container, Card, Section } from '@/components/Layout';
 import { Input, Form, FormRow, TextArea, Select, FileInput } from '@/components/Form';
 import { Button } from '@/components/Button';
@@ -98,6 +98,15 @@ export default function AdminEditSpacePage() {
 
     try {
       setIsSubmitting(true);
+
+      let fotoUrl = '';
+      if (formData.foto) {
+        const uploadRes = await uploadApi.uploadImage(formData.foto, 'spaces');
+        if (uploadRes.status && uploadRes.data) {
+          fotoUrl = uploadRes.data.url || uploadRes.data.path || uploadRes.data.filename || uploadRes.data.fileName || (typeof uploadRes.data === 'string' ? uploadRes.data : '');
+        }
+      }
+
       const payload: any = {
         nama_space: formData.nama_space,
         tipe: formData.tipe_space,
@@ -107,8 +116,8 @@ export default function AdminEditSpacePage() {
           ? `${formData.deskripsi}\nFasilitas: ${formData.fasilitas}`
           : (formData.deskripsi || 'Ruangan coworking space'),
       };
-      if (formData.foto) {
-        payload.foto = formData.foto;
+      if (fotoUrl) {
+        payload.foto = fotoUrl;
       }
 
       const res = await apiClient.updateAdminSpace(spaceId, payload);
