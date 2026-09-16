@@ -29,15 +29,20 @@ export default function AdminAddSpacePage() {
 
   const { data: spaceTypes } = useApi(() => apiClient.getSpaceTypes(), true);
 
-  const typeOptions = spaceTypes?.map((t: any) => ({
-    value: t.tipe_space || t.id,
-    label: t.tipe_space,
-  })) || [
-    { value: 'Personal Desk', label: 'Personal Desk' },
-    { value: 'Private Office', label: 'Private Office' },
-    { value: 'Meeting Room', label: 'Meeting Room' },
-    { value: 'Event Space', label: 'Event Space' },
+  const defaultTypes = [
+    { value: 'desk', label: 'Personal Desk' },
+    { value: 'meeting_room', label: 'Meeting Room' },
+    { value: 'private_office', label: 'Private Office' },
   ];
+
+  const typeOptions = (Array.isArray(spaceTypes) && spaceTypes.length > 0)
+    ? spaceTypes.map((t: any) => {
+        if (typeof t === 'string') return { value: t, label: t };
+        const val = t.value || t.tipe || t.tipe_space || t.id || t.name;
+        const lbl = t.label || t.nama || t.tipe_space || t.nama_tipe || t.name || val;
+        return { value: String(val), label: String(lbl) };
+      })
+    : defaultTypes;
 
   useEffect(() => {
     if (!isAuthenticated || userRole !== 'admin_space') {
@@ -128,10 +133,7 @@ export default function AdminAddSpacePage() {
                   </label>
                   <Select
                     name="tipe_space"
-                    options={[
-                      { value: '', label: 'Pilih Tipe Ruangan' },
-                      ...typeOptions,
-                    ]}
+                    options={typeOptions}
                     value={formData.tipe_space}
                     onChange={handleChange}
                     required
