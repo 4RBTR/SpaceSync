@@ -80,14 +80,6 @@ export default function AdminAddSpacePage() {
     try {
       setIsSubmitting(true);
 
-      let fotoUrl = '';
-      if (formData.foto) {
-        const uploadRes = await uploadApi.uploadImage(formData.foto, 'spaces');
-        if (uploadRes.status && uploadRes.data) {
-          fotoUrl = uploadRes.data.url || uploadRes.data.path || uploadRes.data.filename || uploadRes.data.fileName || (typeof uploadRes.data === 'string' ? uploadRes.data : '');
-        }
-      }
-
       const payload: any = {
         nama_space: formData.nama_space,
         tipe: formData.tipe_space,
@@ -97,8 +89,8 @@ export default function AdminAddSpacePage() {
           ? `${formData.deskripsi}\nFasilitas: ${formData.fasilitas}`
           : (formData.deskripsi || 'Ruangan coworking space'),
       };
-      if (fotoUrl) {
-        payload.foto = fotoUrl;
+      if (formData.foto) {
+        payload.foto = formData.foto;
       }
 
       const res = await apiClient.createAdminSpace(payload);

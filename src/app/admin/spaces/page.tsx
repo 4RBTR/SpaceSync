@@ -67,9 +67,10 @@ export default function AdminSpacesPage() {
                   {/* Image */}
                   <div className="w-full h-48 bg-slate-100 dark:bg-slate-800 rounded-lg mb-4 flex items-center justify-center text-slate-400 font-semibold overflow-hidden">
                     <img
-                      src={getImageUrl(space.foto, 'space')}
+                      src={getImageUrl(space.foto_url || space.foto, 'space')}
                       alt={space.nama_space}
                       className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80'; }}
                     />
                   </div>
 

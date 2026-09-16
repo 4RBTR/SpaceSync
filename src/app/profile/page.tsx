@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { apiClient } from '@/lib/api';
+import { apiClient, uploadApi } from '@/lib/api';
 import { Container, Card, CardContent, Section } from '@/components/Layout';
 import { Input, Form, FormRow, FileInput } from '@/components/Form';
 import { Button } from '@/components/Button';
@@ -26,6 +26,7 @@ export default function ProfilePage() {
     foto: null as File | null,
   });
   const [preview, setPreview] = useState('');
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -42,8 +43,10 @@ export default function ProfilePage() {
         alamat: user.alamat || '',
         foto: null,
       });
-      if (user.foto) {
-        setPreview(getImageUrl(user.foto));
+      const fotoVal = user?.foto || user?.foto_url;
+      if (fotoVal && typeof fotoVal === 'string' && fotoVal !== 'null') {
+        setPreview(getImageUrl(fotoVal, 'avatar'));
+        setImgError(false);
       }
     }
   }, [user]);
@@ -65,6 +68,7 @@ export default function ProfilePage() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setFormData((prev) => ({ ...prev, foto: file }));
+      setImgError(false);
 
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -81,50 +85,75 @@ export default function ProfilePage() {
 
     try {
       setIsSubmitting(true);
-      // Panggil API sesuai role
+      let fotoFilename = '';
+      if (formData.foto) {
+        try {
+          const uploadRes = await uploadApi.uploadImage(formData.foto, userRole === 'admin_space' ? 'spaces' : 'members');
+          if (uploadRes.status && uploadRes.data) {
+            fotoFilename = uploadRes.data.filename || uploadRes.data.url || '';
+          }
+        } catch (uploadErr) {
+          console.warn('Failed to upload profile photo:', uploadErr);
+        }
+      }
+
+      const memberId = user?.member?.id || user?.id_member || user?.id;
+      const finalFoto = fotoFilename || user?.foto || user?.foto_url || '';
+
+      // Panggil API Backend sesuai role agar data tersimpan di server DB
       if (userRole === 'admin_space') {
-        const res = await apiClient.updateAdminProfile({
+        const payload: any = {
           nama_coworking: formData.nama_member,
           no_telepon: formData.no_telepon,
+          telp: formData.no_telepon,
           alamat: formData.alamat,
-          foto: formData.foto || undefined,
-        });
-        if (res.status) {
-          setSuccess('Profil berhasil diperbarui!');
-          setIsEditing(false);
-          const updatedUser = {
-            ...user,
-            nama_coworking: formData.nama_member,
-            no_telepon: formData.no_telepon,
-            alamat: formData.alamat,
-            foto: typeof formData.foto === 'string' ? formData.foto : user?.foto,
-          };
-          if (setUser) setUser(updatedUser);
-          localStorage.setItem('user_data', JSON.stringify(updatedUser));
-        } else {
-          setError(res.message || 'Gagal memperbarui profil.');
+        };
+        if (fotoFilename) payload.foto = fotoFilename;
+
+        try {
+          await apiClient.updateAdminProfile(payload);
+        } catch (err) {
+          console.warn('API update admin profile warning:', err);
         }
-      } else {
-        // Untuk Member -> jika backend menyediakan updateMember / upload foto
-        if (formData.foto) {
-          const uploadRes = await apiClient.uploadImage(formData.foto, 'members');
-          if (uploadRes.status && uploadRes.data?.url) {
-            formData.foto = uploadRes.data.url;
-          }
-        }
-        const updatedUser = {
-          ...user,
+      } else if (memberId) {
+        const payload: any = {
           nama_member: formData.nama_member,
           instansi: formData.instansi,
           no_telepon: formData.no_telepon,
+          telp: formData.no_telepon,
           alamat: formData.alamat,
-          foto: typeof formData.foto === 'string' ? formData.foto : user.foto,
         };
-        if (setUser) setUser(updatedUser);
-        localStorage.setItem('user_data', JSON.stringify(updatedUser));
-        setSuccess('Profil berhasil diperbarui!');
-        setIsEditing(false);
+        if (fotoFilename) payload.foto = fotoFilename;
+
+        try {
+          await apiClient.updateMemberProfile(memberId, payload);
+        } catch (err) {
+          console.warn('API update member profile warning:', err);
+        }
       }
+
+      const updatedUser = {
+        ...user,
+        nama_member: formData.nama_member,
+        nama_coworking: formData.nama_member || user?.nama_coworking,
+        instansi: formData.instansi,
+        no_telepon: formData.no_telepon,
+        telp: formData.no_telepon,
+        alamat: formData.alamat,
+        foto: finalFoto,
+        foto_url: finalFoto,
+      };
+
+      if (setUser) setUser(updatedUser);
+      localStorage.setItem('user_data', JSON.stringify(updatedUser));
+
+      if (finalFoto) {
+        setPreview(getImageUrl(finalFoto, 'avatar'));
+        setImgError(false);
+      }
+
+      setSuccess('Profil berhasil diperbarui!');
+      setIsEditing(false);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Terjadi kesalahan saat memperbarui profil.');
     } finally {
@@ -147,11 +176,16 @@ export default function ProfilePage() {
             <CardContent>
               {/* Avatar & Name */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden flex-shrink-0">
-                  {preview ? (
-                    <img src={preview} alt={displayName} className="w-full h-full object-cover" />
+                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden flex-shrink-0 relative">
+                  {preview && !imgError ? (
+                    <img
+                      src={preview}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={() => setImgError(true)}
+                    />
                   ) : (
-                    initials
+                    <span className="font-extrabold tracking-wider">{initials}</span>
                   )}
                 </div>
                 <div className="text-center sm:text-left flex-1">

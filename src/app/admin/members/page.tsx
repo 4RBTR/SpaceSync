@@ -9,6 +9,7 @@ import { Container, Card, CardHeader, CardTitle, CardContent, Section } from '@/
 import { Input } from '@/components/Form';
 import { Button, IconButton } from '@/components/Button';
 import Link from 'next/link';
+import { getInitials, getImageUrl } from '@/lib/utils';
 
 export default function AdminMembersPage() {
   const router = useRouter();
@@ -80,7 +81,23 @@ export default function AdminMembersPage() {
                         className="border-b border-gray-200 hover:bg-gray-50 transition"
                       >
                         <td className="px-6 py-4 font-medium text-gray-900">
-                          {member.nama_member}
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-xs overflow-hidden flex-shrink-0 border border-indigo-200/50">
+                              {member.foto_url || member.foto ? (
+                                <img
+                                  src={getImageUrl(member.foto_url || member.foto, 'avatar')}
+                                  alt={member.nama_member}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                getInitials(member.nama_member || 'Member')
+                              )}
+                            </div>
+                            <span className="font-semibold">{member.nama_member}</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-gray-600">{member.email}</td>
                         <td className="px-6 py-4 text-gray-600">

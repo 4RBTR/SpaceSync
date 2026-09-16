@@ -8,6 +8,9 @@ import { reservationsApi } from './api/reservations';
 import { adminApi } from './api/admin';
 import { uploadApi } from './api/upload';
 
+// Re-export uploadApi for direct use in pages
+export { uploadApi };
+
 /**
  * Facade pattern to maintain backward compatibility with existing code.
  * All API calls are now modularized in src/lib/api/* but exported as a single object here.
@@ -31,6 +34,7 @@ export const apiClient = {
   registerAdminSpace: (data: any) => authApi.registerAdminSpace(data),
   login: (username: string, password: string) => authApi.login(username, password),
   getProfile: () => authApi.getProfile(),
+  updateMemberProfile: (id: string | number, data: any) => authApi.updateMemberProfile(id, data),
 
   // Spaces & Diskon
   getSpaceTypes: () => spacesApi.getSpaceTypes(),

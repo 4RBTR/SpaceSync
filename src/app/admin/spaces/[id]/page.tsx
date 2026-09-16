@@ -63,8 +63,8 @@ export default function AdminEditSpacePage() {
         deskripsi: spaceDetail.deskripsi || '',
         foto: null,
       });
-      if (spaceDetail.foto) {
-        setPreview(getImageUrl(spaceDetail.foto));
+      if (spaceDetail.foto_url || spaceDetail.foto) {
+        setPreview(getImageUrl(spaceDetail.foto_url || spaceDetail.foto, 'space'));
       }
     }
   }, [spaceDetail]);
@@ -99,14 +99,6 @@ export default function AdminEditSpacePage() {
     try {
       setIsSubmitting(true);
 
-      let fotoUrl = '';
-      if (formData.foto) {
-        const uploadRes = await uploadApi.uploadImage(formData.foto, 'spaces');
-        if (uploadRes.status && uploadRes.data) {
-          fotoUrl = uploadRes.data.url || uploadRes.data.path || uploadRes.data.filename || uploadRes.data.fileName || (typeof uploadRes.data === 'string' ? uploadRes.data : '');
-        }
-      }
-
       const payload: any = {
         nama_space: formData.nama_space,
         tipe: formData.tipe_space,
@@ -116,8 +108,8 @@ export default function AdminEditSpacePage() {
           ? `${formData.deskripsi}\nFasilitas: ${formData.fasilitas}`
           : (formData.deskripsi || 'Ruangan coworking space'),
       };
-      if (fotoUrl) {
-        payload.foto = fotoUrl;
+      if (formData.foto) {
+        payload.foto = formData.foto;
       }
 
       const res = await apiClient.updateAdminSpace(spaceId, payload);

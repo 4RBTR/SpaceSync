@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
-import { apiClient } from '@/lib/api';
+import { apiClient, uploadApi } from '@/lib/api';
 import { Container, Card, Section } from '@/components/Layout';
 import { Input, Form, FormRow, FileInput } from '@/components/Form';
 import { Button } from '@/components/Button';
@@ -46,8 +46,8 @@ export default function AdminEditMemberPage() {
         alamat: memberDetail.alamat || '',
         foto: null,
       });
-      if (memberDetail.foto) {
-        setPreview(getImageUrl(memberDetail.foto));
+      if (memberDetail.foto_url || memberDetail.foto) {
+        setPreview(memberDetail.foto_url ? memberDetail.foto_url.replace(/^http:\/\//, 'https://') : getImageUrl(memberDetail.foto, 'avatar'));
       }
     }
   }, [memberDetail]);
@@ -81,6 +81,7 @@ export default function AdminEditMemberPage() {
 
     try {
       setIsSubmitting(true);
+
       const payload: any = {
         nama_member: formData.nama_member,
         email: formData.email,

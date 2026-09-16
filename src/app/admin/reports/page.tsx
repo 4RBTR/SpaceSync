@@ -15,6 +15,11 @@ export default function AdminReportsPage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
 
+  const { data: reservations, isLoading: reservationsLoading } = useApi(
+    () => apiClient.getAdminReservations({ limit: 500 }),
+    isAuthenticated && userRole === 'admin_space'
+  );
+
   const { data: monthlyReport, isLoading: monthlyLoading } = useApi(
     () => apiClient.getMonthlyReports(month, year),
     isAuthenticated && userRole === 'admin_space'
@@ -35,12 +40,58 @@ export default function AdminReportsPage() {
     label: (new Date().getFullYear() - i).toString(),
   }));
 
-  const isLoading = monthlyLoading || incomeLoading;
+  const isLoading = monthlyLoading || incomeLoading || reservationsLoading;
+
+  // Filter reservations by selected month & year
+  const filteredReservations = (reservations || []).filter((r: any) => {
+    if (!r.tanggal_reservasi) return false;
+    const d = new Date(r.tanggal_reservasi);
+    return d.getMonth() + 1 === month && d.getFullYear() === year;
+  });
+
+  // Calculate real metrics directly from database records
+  const realTotalReservasi = filteredReservations.length > 0 
+    ? filteredReservations.length 
+    : (monthlyReport?.ringkasan?.total_reservasi || monthlyReport?.total_reservasi || 0);
+
+  const realReservasiSelesai = filteredReservations.length > 0
+    ? filteredReservations.filter((r: any) => r.status === 'Selesai' || r.status === 'Aktif/Digunakan').length
+    : (monthlyReport?.ringkasan?.status_reservasi?.selesai || monthlyReport?.reservasi_selesai || 0);
+
+  const realPendapatanTerukur = filteredReservations.length > 0
+    ? filteredReservations
+        .filter((r: any) => r.status === 'Selesai' || r.status === 'Aktif/Digunakan')
+        .reduce((sum: number, r: any) => sum + (Number(r.total_harga) || 0), 0)
+    : (monthlyReport?.ringkasan?.realisasi_pendapatan || monthlyReport?.pendapatan_terukur || 0);
+
+  const realEstimasiPendapatan = filteredReservations.length > 0
+    ? filteredReservations
+        .filter((r: any) => r.status !== 'Dibatalkan')
+        .reduce((sum: number, r: any) => sum + (Number(r.total_harga) || 0), 0)
+    : (monthlyReport?.ringkasan?.estimasi_pendapatan_total || monthlyReport?.estimasi_pendapatan || 0);
+
+  // Calculate real income per space type
+  const spaceTypeMap: Record<string, { count: number; total_income: number }> = {};
+  filteredReservations.forEach((r: any) => {
+    if (r.status === 'Dibatalkan') return;
+    const typeName = r.space?.tipe || r.space?.tipe_space || r.space?.nama_space || 'Coworking Space';
+    if (!spaceTypeMap[typeName]) {
+      spaceTypeMap[typeName] = { count: 0, total_income: 0 };
+    }
+    spaceTypeMap[typeName].count += 1;
+    spaceTypeMap[typeName].total_income += Number(r.total_harga) || 0;
+  });
+
+  const realIncomeBySpaceType = Object.entries(spaceTypeMap).map(([type, data]) => ({
+    tipe_space: type,
+    total_reservasi: data.count,
+    total_pendapatan: data.total_income,
+  }));
 
   return (
     <div className="min-h-screen py-8">
       <Container>
-        <Section title="Laporan Pendapatan" description="Rekapitulasi dan analisis pendapatan">
+        <Section title="Laporan Pendapatan" description="Rekapitulasi dan analisis real pendapatan lokasi coworking space">
           {/* Date Filter */}
           <Card className="mb-6">
             <div className="grid md:grid-cols-3 gap-4 items-end">
@@ -56,9 +107,11 @@ export default function AdminReportsPage() {
                 value={year.toString()}
                 onChange={(e) => setYear(parseInt(e.target.value))}
               />
-              <Button variant="outline" className="w-full">
-                Refresh
-              </Button>
+              <div className="mb-4">
+                <Button variant="outline" className="w-full">
+                  Refresh Data
+                </Button>
+              </div>
             </div>
           </Card>
 
@@ -74,7 +127,7 @@ export default function AdminReportsPage() {
                   <div className="text-center">
                     <p className="text-gray-600 text-sm mb-2">Total Reservasi</p>
                     <p className="text-3xl font-bold text-blue-600">
-                      {monthlyReport?.total_reservasi || 0}
+                      {realTotalReservasi}
                     </p>
                   </div>
                 </Card>
@@ -83,7 +136,7 @@ export default function AdminReportsPage() {
                   <div className="text-center">
                     <p className="text-gray-600 text-sm mb-2">Reservasi Selesai</p>
                     <p className="text-3xl font-bold text-green-600">
-                      {monthlyReport?.reservasi_selesai || 0}
+                      {realReservasiSelesai}
                     </p>
                   </div>
                 </Card>
@@ -92,7 +145,7 @@ export default function AdminReportsPage() {
                   <div className="text-center">
                     <p className="text-gray-600 text-sm mb-2">Pendapatan Terukur</p>
                     <p className="text-2xl font-bold text-purple-600">
-                      {formatCurrency(monthlyReport?.pendapatan_terukur || 0)}
+                      {formatCurrency(realPendapatanTerukur)}
                     </p>
                   </div>
                 </Card>
@@ -101,7 +154,7 @@ export default function AdminReportsPage() {
                   <div className="text-center">
                     <p className="text-gray-600 text-sm mb-2">Estimasi Pendapatan</p>
                     <p className="text-2xl font-bold text-orange-600">
-                      {formatCurrency(monthlyReport?.estimasi_pendapatan || 0)}
+                      {formatCurrency(realEstimasiPendapatan)}
                     </p>
                   </div>
                 </Card>
@@ -113,9 +166,9 @@ export default function AdminReportsPage() {
                   <CardTitle>Distribusi Pendapatan per Tipe Space</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {incomeReport && incomeReport.length > 0 ? (
+                  {realIncomeBySpaceType.length > 0 ? (
                     <div className="space-y-4">
-                      {incomeReport.map((income: any, idx: number) => (
+                      {realIncomeBySpaceType.map((income: any, idx: number) => (
                         <div
                           key={idx}
                           className="border border-gray-200 rounded-lg p-4"
@@ -125,9 +178,6 @@ export default function AdminReportsPage() {
                               <h4 className="font-semibold text-gray-900">
                                 {income.tipe_space}
                               </h4>
-                              <p className="text-sm text-gray-600">
-                                {income.jumlah_space} Ruangan
-                              </p>
                             </div>
                             <Badge variant="primary">
                               {income.total_reservasi} Reservasi
@@ -153,11 +203,9 @@ export default function AdminReportsPage() {
                             <div>
                               <p className="text-gray-600">% Total</p>
                               <p className="font-bold text-blue-600">
-                                {(
-                                  (income.total_pendapatan /
-                                    (monthlyReport?.estimasi_pendapatan || 1)) *
-                                  100
-                                ).toFixed(1)}
+                                {realEstimasiPendapatan > 0
+                                  ? ((income.total_pendapatan / realEstimasiPendapatan) * 100).toFixed(1)
+                                  : '0'}
                                 %
                               </p>
                             </div>
@@ -168,7 +216,7 @@ export default function AdminReportsPage() {
                             <div
                               className="bg-green-600 h-2 rounded-full transition-all"
                               style={{
-                                width: `${(income.total_pendapatan / (monthlyReport?.estimasi_pendapatan || 1)) * 100}%`,
+                                width: `${realEstimasiPendapatan > 0 ? (income.total_pendapatan / realEstimasiPendapatan) * 100 : 0}%`,
                               }}
                             ></div>
                           </div>

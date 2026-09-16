@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { cn } from '@/lib/utils';
+import { cn, getImageUrl } from '@/lib/utils';
 
 export function Header() {
   const router = useRouter();
@@ -85,8 +85,20 @@ export function Header() {
           {isAuthenticated ? (
             <div className="flex items-center gap-3">
               <Link href="/profile" className="hidden sm:flex items-center gap-3 p-1.5 pr-3 rounded-full bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 hover:border-indigo-300 transition-all duration-300 group">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
-                  {user?.nama_member?.charAt(0) || user?.nama_coworking?.charAt(0) || 'U'}
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-xs shadow-md overflow-hidden flex-shrink-0 relative">
+                  <span>
+                    {user?.nama_member?.charAt(0) || user?.nama_coworking?.charAt(0) || user?.username?.charAt(0) || 'U'}
+                  </span>
+                  {(user?.foto_url || user?.foto) && (
+                    <img
+                      src={getImageUrl(user.foto_url || user.foto, 'avatar')}
+                      alt={user?.nama_member || user?.nama_coworking || 'User'}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  )}
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-none group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">

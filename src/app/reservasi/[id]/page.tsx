@@ -24,10 +24,16 @@ export default function ReservationDetailPage() {
   const handleCancel = async () => {
     if (confirm('Apakah Anda yakin ingin membatalkan reservasi ini?')) {
       try {
-        await apiClient.cancelReservation(reservationId);
-        router.push('/reservasi');
-      } catch (err) {
+        const res = await apiClient.cancelReservation(reservationId);
+        if (res.status) {
+          alert('Reservasi berhasil dibatalkan');
+          router.push('/reservasi');
+        } else {
+          alert(res.message || 'Gagal membatalkan reservasi');
+        }
+      } catch (err: any) {
         console.error('Gagal membatalkan reservasi:', err);
+        alert(err.response?.data?.message || 'Gagal membatalkan reservasi');
       }
     }
   };
@@ -212,7 +218,10 @@ export default function ReservationDetailPage() {
                     </Button>
                   </Link>
 
-                  {reservation.status === 'Belum Dikonfirmasi' && (
+                  {(reservation.status === 'Belum Dikonfirmasi' ||
+                    reservation.status === 'pending' ||
+                    reservation.status?.toLowerCase()?.includes('belum') ||
+                    reservation.status?.toLowerCase()?.includes('pend')) && (
                     <Button
                       variant="danger"
                       className="w-full"

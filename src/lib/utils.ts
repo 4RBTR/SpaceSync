@@ -4,8 +4,10 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date?: string | Date | null): string {
+  if (!date) return '-';
   const d = typeof date === 'string' ? new Date(date) : date;
+  if (!d || isNaN(d.getTime())) return '-';
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -24,11 +26,13 @@ export function formatCurrency(amount: number, currency: string = 'IDR'): string
     currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(amount || 0);
 }
 
-export function formatDateTime(dateTime: string): string {
-  const date = new Date(dateTime);
+export function formatDateTime(dateTime?: string | Date | null): string {
+  if (!dateTime) return '-';
+  const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
+  if (!date || isNaN(date.getTime())) return '-';
   return new Intl.DateTimeFormat('id-ID', {
     year: 'numeric',
     month: 'long',
@@ -56,15 +60,27 @@ export function getMonthName(month: number): string {
   return months[month - 1] || '';
 }
 
-export function getStatusColor(status: string): string {
+export function formatStatusLabel(status?: string): string {
+  if (!status) return 'Belum Dikonfirmasi';
+  const s = String(status).toLowerCase().replace(/_/g, ' ');
+  if (s.includes('belum') || s.includes('pending') || s.includes('konfirm')) return 'Belum Dikonfirmasi';
+  if (s.includes('setuju') || s.includes('confirm')) return 'Disetujui';
+  if (s.includes('aktif') || s.includes('guna')) return 'Aktif/Digunakan';
+  if (s.includes('selesai') || s.includes('complete')) return 'Selesai';
+  if (s.includes('batal') || s.includes('cancel')) return 'Dibatalkan';
+  return status;
+}
+
+export function getStatusColor(status?: string): string {
+  const label = formatStatusLabel(status);
   const statusMap: Record<string, string> = {
-    'Belum Dikonfirmasi': 'bg-yellow-100 text-yellow-800 border border-yellow-300',
+    'Belum Dikonfirmasi': 'bg-amber-100 text-amber-800 border border-amber-300',
     'Disetujui': 'bg-blue-100 text-blue-800 border border-blue-300',
-    'Aktif/Digunakan': 'bg-green-100 text-green-800 border border-green-300',
-    'Selesai': 'bg-gray-100 text-gray-800 border border-gray-300',
-    'Dibatalkan': 'bg-red-100 text-red-800 border border-red-300',
+    'Aktif/Digunakan': 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+    'Selesai': 'bg-slate-100 text-slate-800 border border-slate-300',
+    'Dibatalkan': 'bg-rose-100 text-rose-800 border border-rose-300',
   };
-  return statusMap[status] || 'bg-gray-100 text-gray-800 border border-gray-300';
+  return statusMap[label] || 'bg-slate-100 text-slate-800 border border-slate-300';
 }
 
 export function calculateTotalPrice(
@@ -164,18 +180,36 @@ export function getUpcomingReservations(reservations: any[]): any[] {
     );
 }
 
-export function getImageUrl(path?: string, fallbackType: 'space' | 'avatar' = 'space'): string {
-  if (!path) {
-    return fallbackType === 'avatar'
-      ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80'
-      : 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80';
+export function getImageUrl(pathOrUrl?: string, fallbackType: 'space' | 'avatar' = 'space'): string {
+  const defaultFallback = fallbackType === 'avatar'
+    ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80'
+    : 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80';
+
+  if (!pathOrUrl) return defaultFallback;
+
+  // If pathOrUrl is already a data URI or blob URL (e.g. FileReader preview), return as is
+  if (pathOrUrl.startsWith('data:') || pathOrUrl.startsWith('blob:')) {
+    return pathOrUrl;
   }
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
-    return path;
+
+  // Extract filename if full URL or path
+  let filename = pathOrUrl;
+  if (pathOrUrl.includes('/')) {
+    const parts = pathOrUrl.split('/');
+    filename = parts[parts.length - 1];
   }
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://learn.smktelkom-mlg.sch.id/coworking';
-  const cleanBase = baseUrl.replace(/\/+$/, '');
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${cleanBase}${cleanPath}`;
+
+  if (!filename || filename === 'null' || filename === 'undefined') {
+    return defaultFallback;
+  }
+
+  // Determine subfolder (spaces, members, or general)
+  let folder = fallbackType === 'avatar' ? 'members' : 'spaces';
+  if (pathOrUrl.includes('/members/')) folder = 'members';
+  if (pathOrUrl.includes('/spaces/')) folder = 'spaces';
+  if (pathOrUrl.includes('/general/')) folder = 'general';
+
+  // Backend static uploads are hosted under /coworking/uploads/{folder}/{filename}
+  return `https://learn.smktelkom-mlg.sch.id/coworking/uploads/${folder}/${filename}`;
 }
 

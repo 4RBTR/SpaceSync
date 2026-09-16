@@ -62,13 +62,6 @@ export default function AdminAddMemberPage() {
 
     try {
       setIsSubmitting(true);
-      let fotoUrl = '';
-      if (formData.foto) {
-        const uploadRes = await uploadApi.uploadImage(formData.foto, 'members');
-        if (uploadRes.status && uploadRes.data) {
-          fotoUrl = uploadRes.data.url || uploadRes.data.path || uploadRes.data.filename || uploadRes.data.fileName || (typeof uploadRes.data === 'string' ? uploadRes.data : '');
-        }
-      }
 
       const res = await apiClient.createAdminMember({
         nama_member: formData.nama_member,
@@ -78,7 +71,7 @@ export default function AdminAddMemberPage() {
         username: formData.username,
         password: formData.password,
         alamat: formData.alamat || 'Malang',
-        foto: fotoUrl || undefined,
+        foto: formData.foto || undefined,
       });
 
       if (res.status) {

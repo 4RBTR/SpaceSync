@@ -38,6 +38,11 @@ class AxiosClient {
       if (this.accessToken) {
         config.headers.Authorization = `Bearer ${this.accessToken}`;
       }
+      // When sending FormData, remove Content-Type so Axios auto-sets
+      // multipart/form-data with the correct boundary
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
       return config;
     });
 

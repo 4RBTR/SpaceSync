@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Rute yang membutuhkan Login (Member & Admin)
-const protectedRoutes = ['/booking', '/reservasi', '/history', '/profile'];
+const protectedRoutes = ['/spaces', '/booking', '/reservasi', '/history', '/profile', '/dashboard'];
 
 // Rute khusus Admin Space Owner
 const adminRoutes = ['/admin'];
@@ -35,7 +35,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Pengecekan 3: Mengakses rute Member tapi role BUKAN member (misal Admin masuk ke /booking)
-  if (isProtectedRoute && userType === 'admin_space') {
+  if (isProtectedRoute && userType === 'admin_space' && !pathname.startsWith('/spaces')) {
     return NextResponse.redirect(new URL('/admin/dashboard', request.url));
   }
 
@@ -54,10 +54,12 @@ export function proxy(request: NextRequest) {
 // Konfigurasi matcher rute yang diproses oleh Middleware Next.js
 export const config = {
   matcher: [
+    '/spaces/:path*',
     '/booking/:path*',
     '/reservasi/:path*',
     '/history/:path*',
     '/profile/:path*',
+    '/dashboard/:path*',
     '/admin/:path*',
     '/login',
     '/register/:path*',

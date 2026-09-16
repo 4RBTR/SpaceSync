@@ -38,8 +38,11 @@ export default function AdminPromoPage() {
 
   const isActive = (diskon: any) => {
     const today = new Date();
-    const start = new Date(diskon.tanggal_mulai);
-    const end = new Date(diskon.tanggal_akhir);
+    const startDateStr = diskon.tanggal_awal || diskon.tanggal_mulai;
+    const endDateStr = diskon.tanggal_akhir;
+    if (!startDateStr || !endDateStr) return true;
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
     return today >= start && today <= end;
   };
 
@@ -104,7 +107,7 @@ export default function AdminPromoPage() {
                           {diskon.persentase_diskon}%
                         </td>
                         <td className="px-6 py-4 text-gray-600">
-                          {formatDate(diskon.tanggal_mulai)}
+                          {formatDate(diskon.tanggal_awal || diskon.tanggal_mulai)}
                         </td>
                         <td className="px-6 py-4 text-gray-600">
                           {formatDate(diskon.tanggal_akhir)}

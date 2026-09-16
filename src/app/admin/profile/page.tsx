@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
-import { apiClient } from '@/lib/api';
+import { apiClient, uploadApi } from '@/lib/api';
 import { Container, Card, CardContent, Section } from '@/components/Layout';
 import { Input, Form, FormRow, TextArea, FileInput } from '@/components/Form';
 import { Button } from '@/components/Button';
@@ -28,6 +28,7 @@ export default function AdminProfilePage() {
     foto: null as File | null,
   });
   const [preview, setPreview] = useState('');
+  const [imgError, setImgError] = useState(false);
 
   const { data: profile, isLoading, execute: refetchProfile } = useApi(
     () => apiClient.getAdminProfile(),
@@ -50,8 +51,10 @@ export default function AdminProfilePage() {
         deskripsi: profile.deskripsi || '',
         foto: null,
       });
-      if (profile.foto || user?.foto) {
-        setPreview(getImageUrl(profile.foto || user?.foto));
+      const fotoVal = profile?.foto || profile?.foto_url || user?.foto || user?.foto_url;
+      if (fotoVal && typeof fotoVal === 'string' && fotoVal !== 'null') {
+        setPreview(getImageUrl(fotoVal, 'avatar'));
+        setImgError(false);
       }
     }
   }, [profile, user]);
@@ -65,6 +68,7 @@ export default function AdminProfilePage() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setFormData((prev) => ({ ...prev, foto: file }));
+      setImgError(false);
       
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -81,14 +85,46 @@ export default function AdminProfilePage() {
 
     try {
       setIsSubmitting(true);
-      const res = await apiClient.updateAdminProfile(formData);
+
+      let fotoFilename = '';
+      if (formData.foto) {
+        try {
+          const uploadRes = await uploadApi.uploadImage(formData.foto, 'members');
+          if (uploadRes.status && uploadRes.data) {
+            fotoFilename = uploadRes.data.filename || uploadRes.data.url || '';
+          }
+        } catch (uploadErr) {
+          console.warn('Failed to upload profile photo:', uploadErr);
+        }
+      }
+
+      const payload: any = {
+        nama_coworking: formData.nama_coworking,
+        nama_pemilik: formData.nama_pemilik,
+        alamat: formData.alamat,
+        no_telepon: formData.no_telepon,
+        telp: formData.no_telepon,
+        deskripsi: formData.deskripsi,
+      };
+      if (fotoFilename) {
+        payload.foto = fotoFilename;
+      }
+
+      const res = await apiClient.updateAdminProfile(payload);
       
       if (res.status) {
         setSuccess('Profil Admin Coworking Space berhasil diperbarui!');
         setIsEditing(false);
+        
+        const finalFoto = fotoFilename || user?.foto || user?.foto_url || '';
+        if (finalFoto) {
+          setPreview(getImageUrl(finalFoto, 'avatar'));
+          setImgError(false);
+        }
+        
         refetchProfile();
         
-        // Update user state di Auth Context
+        // Update user state di Auth Context & LocalStorage
         if (setUser && user) {
           const updatedUser = {
             ...user,
@@ -96,6 +132,8 @@ export default function AdminProfilePage() {
             nama_pemilik: formData.nama_pemilik,
             no_telepon: formData.no_telepon,
             alamat: formData.alamat,
+            foto: finalFoto,
+            foto_url: finalFoto,
           };
           setUser(updatedUser);
           localStorage.setItem('user_data', JSON.stringify(updatedUser));
@@ -134,11 +172,16 @@ export default function AdminProfilePage() {
             <CardContent>
               {/* Header Avatar & Identity */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white text-3xl font-black shadow-lg overflow-hidden flex-shrink-0">
-                  {preview ? (
-                    <img src={preview} alt={spaceName} className="w-full h-full object-cover" />
+                <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-indigo-700 flex items-center justify-center text-white text-3xl font-extrabold shadow-lg overflow-hidden flex-shrink-0 relative">
+                  {preview && !imgError ? (
+                    <img
+                      src={preview}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={() => setImgError(true)}
+                    />
                   ) : (
-                    initials
+                    <span className="font-black font-heading tracking-wider">{initials}</span>
                   )}
                 </div>
                 <div className="text-center sm:text-left flex-1 space-y-1">

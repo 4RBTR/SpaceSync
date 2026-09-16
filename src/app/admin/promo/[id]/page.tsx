@@ -38,7 +38,7 @@ export default function AdminEditPromoPage() {
         nama_diskon: promoDetail.nama_diskon || '',
         kode_diskon: promoDetail.kode_diskon || '',
         persentase_diskon: promoDetail.persentase_diskon?.toString() || '',
-        tanggal_mulai: promoDetail.tanggal_mulai ? formatDate(promoDetail.tanggal_mulai) : '',
+        tanggal_mulai: (promoDetail.tanggal_awal || promoDetail.tanggal_mulai) ? formatDate(promoDetail.tanggal_awal || promoDetail.tanggal_mulai) : '',
         tanggal_akhir: promoDetail.tanggal_akhir ? formatDate(promoDetail.tanggal_akhir) : '',
       });
     }

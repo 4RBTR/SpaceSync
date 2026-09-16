@@ -24,8 +24,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="id"
       className={`${inter.variable} ${outfit.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-slate-50 font-sans text-slate-900">
+      <body
+        className="min-h-full flex flex-col bg-slate-50 font-sans text-slate-900"
+        suppressHydrationWarning
+      >
         <AuthProvider>
           <Header />
           {children}

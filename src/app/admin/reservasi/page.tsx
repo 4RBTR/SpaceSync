@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
 import { apiClient } from '@/lib/api';
@@ -9,13 +10,19 @@ import { Input, Select } from '@/components/Form';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Alert';
 import Link from 'next/link';
-import { formatDate, formatCurrency, getStatusColor } from '@/lib/utils';
+import { formatDate, formatCurrency, getStatusColor, formatStatusLabel } from '@/lib/utils';
 
 export default function AdminReservasiPage() {
+  const router = useRouter();
   const { isAuthenticated, userRole } = useAuth();
   const [selectedStatus, setSelectedStatus] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
+
+  // QR Code Verification State
+  const [qrInput, setQrInput] = useState('');
+  const [qrError, setQrError] = useState('');
+  const [qrSuccess, setQrSuccess] = useState('');
 
   const { data: reservations, isLoading, execute: refetch } = useApi(
     () =>
@@ -27,6 +34,45 @@ export default function AdminReservasiPage() {
       }),
     isAuthenticated && userRole === 'admin_space'
   );
+
+  const handleVerifyQR = (e: React.FormEvent) => {
+    e.preventDefault();
+    setQrError('');
+    setQrSuccess('');
+
+    if (!qrInput.trim()) return;
+
+    let targetId = qrInput.trim();
+
+    // Try parsing if QR content is JSON
+    try {
+      if (targetId.startsWith('{')) {
+        const parsed = JSON.parse(targetId);
+        if (parsed.id) targetId = String(parsed.id);
+      }
+    } catch (err) {
+      // ignore json parse error
+    }
+
+    // Clean #RES- prefix if present
+    targetId = targetId.replace(/#RES-/i, '').trim();
+
+    const matched = reservations?.find(
+      (r: any) => String(r.id) === targetId || String(r.id).includes(targetId)
+    );
+
+    if (matched) {
+      setQrSuccess(`Reservasi #${matched.id} (${matched.member?.nama_member || 'Member'}) ditemukan! Pengalihan...`);
+      setTimeout(() => {
+        router.push(`/admin/reservasi/${matched.id}`);
+      }, 800);
+    } else if (targetId) {
+      // Directly try navigating to that reservation ID
+      router.push(`/admin/reservasi/${targetId}`);
+    } else {
+      setQrError('Format QR Code atau Kode Reservasi tidak valid.');
+    }
+  };
 
   const statuses = [
     { value: '', label: 'Semua Status' },
@@ -56,7 +102,43 @@ export default function AdminReservasiPage() {
   return (
     <div className="min-h-screen py-8">
       <Container>
-        <Section title="Manajemen Reservasi" description="Kelola semua reservasi ruangan">
+        <Section title="Manajemen Reservasi" description="Kelola dan verifikasi E-Ticket reservasi ruangan">
+          
+          {/* QR Code Verification Section */}
+          <Card className="mb-6 border-l-4 border-l-indigo-600 bg-gradient-to-r from-indigo-50/40 via-white to-white">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                Verifikasi QR Code / E-Ticket Member
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleVerifyQR} className="flex flex-col sm:flex-row gap-3 items-end">
+                <div className="flex-1 w-full">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Scan / Tempel Hasil QR Code E-Ticket
+                  </label>
+                  <Input
+                    placeholder="Scan QR Code atau masukkan Kode Reservasi (contoh: 270)... font-mono"
+                    value={qrInput}
+                    onChange={(e) => {
+                      setQrInput(e.target.value);
+                      if (qrError) setQrError('');
+                    }}
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <Button type="submit" className="w-full sm:w-auto shrink-0 mb-4 sm:mb-0">
+                  Verifikasi QR
+                </Button>
+              </form>
+              {qrError && <p className="text-xs text-red-600 font-semibold mt-1">{qrError}</p>}
+              {qrSuccess && <p className="text-xs text-emerald-600 font-bold mt-1">{qrSuccess}</p>}
+            </CardContent>
+          </Card>
+
           {/* Filters */}
           <Card className="mb-6">
             <div className="grid md:grid-cols-4 gap-4">
@@ -79,7 +161,7 @@ export default function AdminReservasiPage() {
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
               />
-              <div className="flex items-end">
+              <div className="flex items-end mb-4">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -136,24 +218,27 @@ export default function AdminReservasiPage() {
                         className="border-b border-gray-200 hover:bg-gray-50 transition"
                       >
                         <td className="px-6 py-4 font-mono text-sm font-semibold text-blue-600">
-                          {reservation.id.slice(0, 8)}...
+                          #RES-{reservation.id}
                         </td>
                         <td className="px-6 py-4 font-medium text-gray-900">
                           {reservation.member?.nama_member}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {reservation.space?.nama_space}
+                        <td className="px-6 py-4 text-gray-900 font-medium">
+                          {reservation.space?.nama_space || reservation.nama_space || 'Meeting Suites 1'}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="px-6 py-4 text-slate-600 font-medium text-sm">
                           {formatDate(reservation.tanggal_reservasi)}
                         </td>
                         <td className="px-6 py-4 text-center">
                           <Badge className={getStatusColor(reservation.status)}>
-                            {reservation.status}
+                            {formatStatusLabel(reservation.status)}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 text-right font-semibold">
-                          {formatCurrency(reservation.total_harga)}
+                        <td className="px-6 py-4 text-right font-semibold text-slate-900">
+                          {formatCurrency(
+                            Number(reservation.total_harga) ||
+                            ((Number(reservation.durasi_jam) || 1) * (Number(reservation.space?.harga_per_jam) || 150000))
+                          )}
                         </td>
                         <td className="px-6 py-4 text-center">
                           <Link href={`/admin/reservasi/${reservation.id}`}>

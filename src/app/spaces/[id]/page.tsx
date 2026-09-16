@@ -52,7 +52,7 @@ export default function SpaceDetailPage() {
   }
 
   const facilities = space.fasilitas ? space.fasilitas.split(',') : [];
-  const spacePhoto = getImageUrl(space.foto);
+  const spacePhoto = getImageUrl(space.foto_url || space.foto, 'space');
 
   return (
     <div className="min-h-screen py-8 md:py-12 bg-slate-50 dark:bg-slate-950">

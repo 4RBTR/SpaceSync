@@ -55,7 +55,7 @@ export default function Home() {
                   </Link>
                 ) : (
                   <>
-                    <Link href="/spaces">
+                    <Link href="/login?redirect=/spaces">
                       <Button size="lg" className="w-full sm:w-auto px-8 py-4 text-base shadow-xl shadow-indigo-500/25">
                         Cari Ruangan
                       </Button>

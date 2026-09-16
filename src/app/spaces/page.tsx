@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
@@ -13,7 +13,13 @@ import { formatCurrency, getImageUrl } from '@/lib/utils';
 
 export default function SpacesPage() {
   const router = useRouter();
-  const { isAuthenticated, userRole } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, userRole } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login?redirect=/spaces');
+    }
+  }, [authLoading, isAuthenticated, router]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,9 +114,10 @@ export default function SpacesPage() {
                     {/* Image with Badges */}
                     <div className="relative w-full aspect-[4/3] bg-slate-100 overflow-hidden">
                       <img
-                        src={getImageUrl(space.foto, 'space')}
+                        src={getImageUrl(space.foto_url || space.foto, 'space')}
                         alt={space.nama_space}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&auto=format&fit=crop&q=80'; }}
                       />
                       
                       {/* Floating Badges */}

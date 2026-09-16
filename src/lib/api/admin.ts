@@ -20,18 +20,16 @@ class AdminApi {
     nama_pemilik?: string;
     alamat?: string;
     no_telepon?: string;
+    telp?: string;
     deskripsi?: string;
-    foto?: File;
+    foto?: string;
   }): Promise<ApiResponse> {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined) {
-        formData.append(key, value);
-      }
-    });
-
+    const payload: any = { ...data };
+    if (payload.no_telepon && !payload.telp) {
+      payload.telp = payload.no_telepon;
+    }
     return axiosClient.instance
-      .put('/api/admin/profile', formData)
+      .put('/api/admin/profile', payload)
       .then((res) => res.data);
   }
 

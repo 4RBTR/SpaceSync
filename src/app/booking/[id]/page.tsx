@@ -32,26 +32,51 @@ export default function BookingPage() {
     id_diskon: '',
   });
 
+  const [promoInput, setPromoInput] = useState('');
+  const [promoError, setPromoError] = useState('');
+
   const { data: space } = useApi(() => apiClient.getSpaceDetail(spaceId), isAuthenticated);
   const { data: discounts } = useApi(() => apiClient.getActiveDiskon(), isAuthenticated);
 
-  const discountOptions = discounts?.map((d: any) => ({
-    value: d.id,
-    label: `${d.nama_diskon} (${d.persentase_diskon}%)`,
-  })) || [];
-
-  const selectedDiscount = discounts?.find((d: any) => d.id === formData.id_diskon);
+  const selectedDiscount = discounts?.find((d: any) => String(d.id) === String(formData.id_diskon));
   const totalPrice = calculateTotalPrice(
     space?.harga_per_jam || 0,
     parseInt(formData.durasi_jam.toString()),
     selectedDiscount?.persentase_diskon
   );
 
+  const handleApplyPromo = () => {
+    setPromoError('');
+    if (!promoInput.trim()) return;
+
+    const trimmed = promoInput.trim().toLowerCase();
+    const matched = discounts?.find(
+      (d: any) =>
+        (d.nama_diskon && String(d.nama_diskon).toLowerCase() === trimmed) ||
+        (d.kode_diskon && String(d.kode_diskon).toLowerCase() === trimmed) ||
+        (d.kode && String(d.kode).toLowerCase() === trimmed)
+    );
+
+    if (matched) {
+      setFormData((prev) => ({ ...prev, id_diskon: String(matched.id) }));
+      setPromoError('');
+    } else {
+      setFormData((prev) => ({ ...prev, id_diskon: '' }));
+      setPromoError('Kode promo tidak valid atau telah kadaluarsa');
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setFormData((prev) => ({ ...prev, id_diskon: '' }));
+    setPromoInput('');
+    setPromoError('');
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'durasi_jam' ? parseInt(value) : value,
+      [name]: name === 'durasi_jam' ? parseInt(value) || 1 : value,
     }));
   };
 
@@ -134,16 +159,60 @@ export default function BookingPage() {
                         required
                       />
 
-                      <Select
-                        label="Kode Promo (Opsional)"
-                        name="id_diskon"
-                        value={formData.id_diskon}
-                        onChange={handleChange}
-                        options={[
-                          { value: '', label: 'Tidak ada promo' },
-                          ...discountOptions,
-                        ]}
-                      />
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Kode Promo (Opsional)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Masukkan kode..."
+                            value={promoInput}
+                            onChange={(e) => {
+                              setPromoInput(e.target.value);
+                              if (promoError) setPromoError('');
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleApplyPromo();
+                              }
+                            }}
+                            disabled={!!selectedDiscount}
+                            className="flex-1 px-4 py-2 bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition disabled:bg-slate-100 disabled:text-slate-500 uppercase font-mono"
+                          />
+                          {selectedDiscount ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={handleRemovePromo}
+                              className="shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
+                            >
+                              Hapus
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              onClick={handleApplyPromo}
+                              disabled={!promoInput.trim()}
+                              className="shrink-0"
+                            >
+                              Terapkan
+                            </Button>
+                          )}
+                        </div>
+                        {promoError && (
+                          <p className="text-red-500 text-xs mt-1.5 font-medium">{promoError}</p>
+                        )}
+                        {selectedDiscount && (
+                          <p className="text-emerald-600 text-xs mt-1.5 font-semibold flex items-center gap-1">
+                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Promo &quot;{selectedDiscount.nama_diskon}&quot; aktif (Diskon {selectedDiscount.persentase_diskon}%)
+                          </p>
+                        )}
+                      </div>
                     </FormRow>
 
                     <Button

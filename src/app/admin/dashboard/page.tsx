@@ -9,7 +9,7 @@ import { Container, Card, CardHeader, CardTitle, CardContent, Section, PageHeade
 import { Badge } from '@/components/Alert';
 import { Button } from '@/components/Button';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getInitials, getImageUrl } from '@/lib/utils';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -107,7 +107,14 @@ export default function AdminDashboardPage() {
               <div>
                 <p className="text-slate-500 font-medium text-sm mb-2">Estimasi Pendapatan</p>
                 <p className="text-2xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
-                  {formatCurrency(monthlyReport?.estimasi_pendapatan || 0)}
+                  {formatCurrency(
+                    (reservations || [])
+                      .filter((r: any) => r.status !== 'Dibatalkan')
+                      .reduce((sum: number, r: any) => sum + (Number(r.total_harga) || 0), 0) ||
+                    monthlyReport?.ringkasan?.estimasi_pendapatan_total ||
+                    monthlyReport?.estimasi_pendapatan ||
+                    0
+                  )}
                 </p>
               </div>
               <div className="w-14 h-14 bg-gradient-to-br from-violet-100 to-violet-50 rounded-xl flex items-center justify-center shadow-sm">
@@ -228,7 +235,26 @@ export default function AdminDashboardPage() {
         {/* Profile Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Informasi Space</CardTitle>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-base overflow-hidden flex-shrink-0 shadow-md">
+                {profile?.foto_url || profile?.foto ? (
+                  <img
+                    src={getImageUrl(profile.foto_url || profile.foto, 'avatar')}
+                    alt={profile.nama_coworking || 'Space'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  getInitials(profile?.nama_coworking || 'Space')
+                )}
+              </div>
+              <div>
+                <CardTitle>{profile?.nama_coworking || 'Informasi Space'}</CardTitle>
+                <p className="text-xs text-slate-500 font-medium">Profil & Penanggung Jawab Space Owner</p>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 bg-slate-50 p-6 rounded-xl border border-slate-100">

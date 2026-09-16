@@ -137,7 +137,10 @@ export default function ReservasiPage() {
                             </Button>
                           </Link>
                         )}
-                      {reservation.status === 'Belum Dikonfirmasi' && (
+                      {(reservation.status === 'Belum Dikonfirmasi' ||
+                        reservation.status === 'pending' ||
+                        reservation.status?.toLowerCase()?.includes('belum') ||
+                        reservation.status?.toLowerCase()?.includes('pend')) && (
                         <Button
                           size="sm"
                           variant="danger"
@@ -149,10 +152,16 @@ export default function ReservasiPage() {
                               )
                             ) {
                               try {
-                                await apiClient.cancelReservation(reservation.id);
-                                window.location.reload();
-                              } catch (err) {
-                                console.error(err);
+                                const res = await apiClient.cancelReservation(reservation.id);
+                                if (res.status) {
+                                  alert('Reservasi berhasil dibatalkan');
+                                  window.location.reload();
+                                } else {
+                                  alert(res.message || 'Gagal membatalkan reservasi');
+                                }
+                              } catch (err: any) {
+                                console.error('Gagal membatalkan reservasi:', err);
+                                alert(err.response?.data?.message || 'Gagal membatalkan reservasi');
                               }
                             }
                           }}
