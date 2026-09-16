@@ -56,7 +56,7 @@ export default function AdminEditSpacePage() {
     if (spaceDetail) {
       setFormData({
         nama_space: spaceDetail.nama_space || '',
-        tipe_space: spaceDetail.tipe_space || '',
+        tipe_space: spaceDetail.tipe || spaceDetail.tipe_space || '',
         harga_per_jam: spaceDetail.harga_per_jam?.toString() || '',
         kapasitas: spaceDetail.kapasitas?.toString() || '',
         fasilitas: spaceDetail.fasilitas || '',
@@ -100,11 +100,12 @@ export default function AdminEditSpacePage() {
       setIsSubmitting(true);
       const payload: any = {
         nama_space: formData.nama_space,
-        tipe_space: formData.tipe_space,
+        tipe: formData.tipe_space,
         harga_per_jam: Number(formData.harga_per_jam),
         kapasitas: Number(formData.kapasitas),
-        fasilitas: formData.fasilitas,
-        deskripsi: formData.deskripsi,
+        deskripsi: formData.fasilitas
+          ? `${formData.deskripsi}\nFasilitas: ${formData.fasilitas}`
+          : (formData.deskripsi || 'Ruangan coworking space'),
       };
       if (formData.foto) {
         payload.foto = formData.foto;

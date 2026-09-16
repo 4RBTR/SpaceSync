@@ -79,15 +79,18 @@ export default function AdminAddSpacePage() {
 
     try {
       setIsSubmitting(true);
-      const payload = {
+      const payload: any = {
         nama_space: formData.nama_space,
-        tipe_space: formData.tipe_space,
+        tipe: formData.tipe_space,
         harga_per_jam: Number(formData.harga_per_jam),
         kapasitas: Number(formData.kapasitas),
-        fasilitas: formData.fasilitas,
-        deskripsi: formData.deskripsi,
-        foto: formData.foto,
+        deskripsi: formData.fasilitas
+          ? `${formData.deskripsi}\nFasilitas: ${formData.fasilitas}`
+          : (formData.deskripsi || 'Ruangan coworking space'),
       };
+      if (formData.foto) {
+        payload.foto = formData.foto;
+      }
 
       const res = await apiClient.createAdminSpace(payload);
 

@@ -49,9 +49,11 @@ class AdminApi {
   async createAdminMember(data: any): Promise<ApiResponse> {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      if (value) {
-        if (typeof value === 'string' || value instanceof Blob) {
-          formData.append(key, value as string | Blob);
+      if (value !== undefined && value !== null && value !== '') {
+        if (value instanceof Blob) {
+          formData.append(key, value);
+        } else {
+          formData.append(key, String(value));
         }
       }
     });
@@ -64,9 +66,11 @@ class AdminApi {
   async updateAdminMember(id: string, data: any): Promise<ApiResponse> {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      if (value) {
-        if (typeof value === 'string' || value instanceof Blob) {
-          formData.append(key, value as string | Blob);
+      if (value !== undefined && value !== null && value !== '') {
+        if (value instanceof Blob) {
+          formData.append(key, value);
+        } else {
+          formData.append(key, String(value));
         }
       }
     });
@@ -94,9 +98,11 @@ class AdminApi {
   async createAdminSpace(data: any): Promise<ApiResponse> {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      if (value) {
-        if (typeof value === 'string' || value instanceof Blob) {
-          formData.append(key, value as string | Blob);
+      if (value !== undefined && value !== null && value !== '') {
+        if (value instanceof Blob) {
+          formData.append(key, value);
+        } else {
+          formData.append(key, String(value));
         }
       }
     });
@@ -109,9 +115,11 @@ class AdminApi {
   async updateAdminSpace(id: string, data: any): Promise<ApiResponse> {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      if (value) {
-        if (typeof value === 'string' || value instanceof Blob) {
-          formData.append(key, value as string | Blob);
+      if (value !== undefined && value !== null && value !== '') {
+        if (value instanceof Blob) {
+          formData.append(key, value);
+        } else {
+          formData.append(key, String(value));
         }
       }
     });

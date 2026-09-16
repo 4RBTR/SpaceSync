@@ -47,11 +47,10 @@ export default function AdminAddPromoPage() {
     try {
       setIsSubmitting(true);
       const res = await apiClient.createAdminDiskon({
-        nama_diskon: formData.nama_diskon,
-        kode_diskon: formData.kode_diskon.toUpperCase(),
+        nama_diskon: (formData.kode_diskon || formData.nama_diskon).toUpperCase().replace(/\s+/g, ''),
         persentase_diskon: Number(formData.persentase_diskon),
-        tanggal_mulai: formData.tanggal_mulai,
-        tanggal_akhir: formData.tanggal_akhir,
+        tanggal_awal: new Date(`${formData.tanggal_mulai}T00:00:00`).toISOString(),
+        tanggal_akhir: new Date(`${formData.tanggal_akhir}T23:59:59`).toISOString(),
       });
 
       if (res.status) {

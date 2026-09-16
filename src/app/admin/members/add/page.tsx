@@ -65,12 +65,12 @@ export default function AdminAddMemberPage() {
       const res = await apiClient.createAdminMember({
         nama_member: formData.nama_member,
         email: formData.email,
-        telp: formData.no_telepon,
-        instansi: formData.instansi,
+        telp: formData.no_telepon || '081234567890',
+        instansi: formData.instansi || 'Umum',
         username: formData.username,
         password: formData.password,
-        alamat: formData.alamat,
-        foto: formData.foto,
+        alamat: formData.alamat || 'Malang',
+        foto: formData.foto || undefined,
       });
 
       if (res.status) {
