@@ -8,27 +8,33 @@ import { Container, Card, CardHeader, CardTitle, CardContent, Section, Grid } fr
 import { Input, Select } from '@/components/Form';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Alert';
-import { formatCurrency, formatDate, getMonthName } from '@/lib/utils';
+import { formatCurrency, formatDate, getMonthName, getReservationPrice, getReservationSpace } from '@/lib/utils';
 
 export default function AdminReportsPage() {
   const { isAuthenticated, userRole } = useAuth();
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
 
-  const { data: reservations, isLoading: reservationsLoading } = useApi(
+  const { data: reservations, isLoading: reservationsLoading, execute: refetchReservations } = useApi(
     () => apiClient.getAdminReservations({ limit: 500 }),
     isAuthenticated && userRole === 'admin_space'
   );
 
-  const { data: monthlyReport, isLoading: monthlyLoading } = useApi(
+  const { data: monthlyReport, isLoading: monthlyLoading, execute: refetchMonthly } = useApi(
     () => apiClient.getMonthlyReports(month, year),
     isAuthenticated && userRole === 'admin_space'
   );
 
-  const { data: incomeReport, isLoading: incomeLoading } = useApi(
+  const { data: incomeReport, isLoading: incomeLoading, execute: refetchIncome } = useApi(
     () => apiClient.getIncomeReports(month, year),
     isAuthenticated && userRole === 'admin_space'
   );
+
+  const handleRefresh = () => {
+    refetchReservations();
+    refetchMonthly();
+    refetchIncome();
+  };
 
   const months = Array.from({ length: 12 }, (_, i) => ({
     value: (i + 1).toString(),
@@ -40,7 +46,7 @@ export default function AdminReportsPage() {
     label: (new Date().getFullYear() - i).toString(),
   }));
 
-  const isLoading = monthlyLoading || incomeLoading || reservationsLoading;
+  const isLoading = monthlyLoading && incomeLoading && reservationsLoading;
 
   // Filter reservations by selected month & year
   const filteredReservations = (reservations || []).filter((r: any) => {
@@ -49,44 +55,82 @@ export default function AdminReportsPage() {
     return d.getMonth() + 1 === month && d.getFullYear() === year;
   });
 
-  // Calculate real metrics directly from database records
+  // Extract report object from backend responses
+  const reportObj = monthlyReport?.ringkasan ? monthlyReport : (monthlyReport?.data || incomeReport?.data || incomeReport);
+
+  // Calculate real metrics directly from database records or API report summary
   const realTotalReservasi = filteredReservations.length > 0 
     ? filteredReservations.length 
-    : (monthlyReport?.ringkasan?.total_reservasi || monthlyReport?.total_reservasi || 0);
+    : Number(reportObj?.ringkasan?.total_reservasi || 0);
 
   const realReservasiSelesai = filteredReservations.length > 0
-    ? filteredReservations.filter((r: any) => r.status === 'Selesai' || r.status === 'Aktif/Digunakan').length
-    : (monthlyReport?.ringkasan?.status_reservasi?.selesai || monthlyReport?.reservasi_selesai || 0);
+    ? filteredReservations.filter((r: any) => {
+        const s = String(r.status).toLowerCase();
+        return s === 'selesai' || s === 'aktif' || s.includes('selesai') || s.includes('aktif') || s.includes('guna');
+      }).length
+    : Number(reportObj?.ringkasan?.status_reservasi?.selesai || 0) + Number(reportObj?.ringkasan?.status_reservasi?.aktif || 0);
 
   const realPendapatanTerukur = filteredReservations.length > 0
     ? filteredReservations
-        .filter((r: any) => r.status === 'Selesai' || r.status === 'Aktif/Digunakan')
-        .reduce((sum: number, r: any) => sum + (Number(r.total_harga) || 0), 0)
-    : (monthlyReport?.ringkasan?.realisasi_pendapatan || monthlyReport?.pendapatan_terukur || 0);
+        .filter((r: any) => {
+          const s = String(r.status).toLowerCase();
+          return s === 'selesai' || s === 'aktif' || s === 'disetujui' || s.includes('selesai') || s.includes('aktif') || s.includes('setuju');
+        })
+        .reduce((sum: number, r: any) => sum + getReservationPrice(r), 0)
+    : Number(reportObj?.ringkasan?.realisasi_pendapatan || reportObj?.ringkasan?.estimasi_pendapatan_total || 0);
 
   const realEstimasiPendapatan = filteredReservations.length > 0
     ? filteredReservations
-        .filter((r: any) => r.status !== 'Dibatalkan')
-        .reduce((sum: number, r: any) => sum + (Number(r.total_harga) || 0), 0)
-    : (monthlyReport?.ringkasan?.estimasi_pendapatan_total || monthlyReport?.estimasi_pendapatan || 0);
+        .filter((r: any) => String(r.status).toLowerCase() !== 'dibatalkan')
+        .reduce((sum: number, r: any) => sum + getReservationPrice(r), 0)
+    : Number(reportObj?.ringkasan?.estimasi_pendapatan_total || 0);
 
-  // Calculate real income per space type
-  const spaceTypeMap: Record<string, { count: number; total_income: number }> = {};
-  filteredReservations.forEach((r: any) => {
-    if (r.status === 'Dibatalkan') return;
-    const typeName = r.space?.tipe || r.space?.tipe_space || r.space?.nama_space || 'Coworking Space';
-    if (!spaceTypeMap[typeName]) {
-      spaceTypeMap[typeName] = { count: 0, total_income: 0 };
-    }
-    spaceTypeMap[typeName].count += 1;
-    spaceTypeMap[typeName].total_income += Number(r.total_harga) || 0;
-  });
+  // Space Type Income Breakdown
+  let spaceTypeItems: Array<{ tipe_space: string; total_reservasi: number; total_pendapatan: number }> = [];
 
-  const realIncomeBySpaceType = Object.entries(spaceTypeMap).map(([type, data]) => ({
-    tipe_space: type,
-    total_reservasi: data.count,
-    total_pendapatan: data.total_income,
-  }));
+  if (filteredReservations.length > 0) {
+    const spaceTypeMap: Record<string, { count: number; total_income: number }> = {};
+    filteredReservations.forEach((r: any) => {
+      if (String(r.status).toLowerCase() === 'dibatalkan') return;
+      const spaceObj = getReservationSpace(r);
+      const rawType = spaceObj?.tipe_space || spaceObj?.tipe || r.nama_space || 'Coworking Space';
+      
+      let typeName = rawType;
+      if (rawType === 'desk') typeName = 'Personal Desk';
+      else if (rawType === 'meeting_room') typeName = 'Meeting Room';
+      else if (rawType === 'private_office') typeName = 'Private Office';
+
+      if (!spaceTypeMap[typeName]) {
+        spaceTypeMap[typeName] = { count: 0, total_income: 0 };
+      }
+      spaceTypeMap[typeName].count += 1;
+      spaceTypeMap[typeName].total_income += getReservationPrice(r);
+    });
+
+    spaceTypeItems = Object.entries(spaceTypeMap).map(([type, data]) => ({
+      tipe_space: type,
+      total_reservasi: data.count,
+      total_pendapatan: data.total_income,
+    }));
+  } else if (reportObj?.pendapatan_per_tipe_space) {
+    const rawMap = reportObj.pendapatan_per_tipe_space;
+    const labelMap: Record<string, string> = {
+      desk: 'Personal Desk',
+      meeting_room: 'Meeting Room',
+      private_office: 'Private Office'
+    };
+    spaceTypeItems = Object.entries(rawMap)
+      .filter(([_, val]: any) => val?.count > 0 || val?.total_income > 0)
+      .map(([key, val]: any) => ({
+        tipe_space: labelMap[key] || key,
+        total_reservasi: val.count || 0,
+        total_pendapatan: val.total_income || 0,
+      }));
+  }
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const occupancyRate = realTotalReservasi > 0 ? ((realReservasiSelesai / realTotalReservasi) * 100).toFixed(1) : '0';
+  const avgTransaction = realTotalReservasi > 0 ? Math.round(realEstimasiPendapatan / realTotalReservasi) : 0;
 
   return (
     <div className="min-h-screen py-8">
@@ -108,7 +152,7 @@ export default function AdminReportsPage() {
                 onChange={(e) => setYear(parseInt(e.target.value))}
               />
               <div className="mb-4">
-                <Button variant="outline" className="w-full">
+                <Button onClick={handleRefresh} variant="outline" className="w-full">
                   Refresh Data
                 </Button>
               </div>
@@ -118,14 +162,14 @@ export default function AdminReportsPage() {
           {/* Monthly Summary */}
           {isLoading ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">Memuat laporan...</p>
+              <p className="text-gray-600">Memuat laporan pendapatan...</p>
             </div>
           ) : (
             <>
               <Grid cols={4} className="mb-8">
                 <Card>
                   <div className="text-center">
-                    <p className="text-gray-600 text-sm mb-2">Total Reservasi</p>
+                    <p className="text-gray-600 text-sm mb-2 font-medium">Total Reservasi</p>
                     <p className="text-3xl font-bold text-blue-600">
                       {realTotalReservasi}
                     </p>
@@ -134,8 +178,8 @@ export default function AdminReportsPage() {
 
                 <Card>
                   <div className="text-center">
-                    <p className="text-gray-600 text-sm mb-2">Reservasi Selesai</p>
-                    <p className="text-3xl font-bold text-green-600">
+                    <p className="text-gray-600 text-sm mb-2 font-medium">Reservasi Selesai / Aktif</p>
+                    <p className="text-3xl font-bold text-emerald-600">
                       {realReservasiSelesai}
                     </p>
                   </div>
@@ -143,8 +187,8 @@ export default function AdminReportsPage() {
 
                 <Card>
                   <div className="text-center">
-                    <p className="text-gray-600 text-sm mb-2">Pendapatan Terukur</p>
-                    <p className="text-2xl font-bold text-purple-600">
+                    <p className="text-gray-600 text-sm mb-2 font-medium">Pendapatan Terukur</p>
+                    <p className="text-2xl font-bold text-indigo-600 font-sans">
                       {formatCurrency(realPendapatanTerukur)}
                     </p>
                   </div>
@@ -152,8 +196,8 @@ export default function AdminReportsPage() {
 
                 <Card>
                   <div className="text-center">
-                    <p className="text-gray-600 text-sm mb-2">Estimasi Pendapatan</p>
-                    <p className="text-2xl font-bold text-orange-600">
+                    <p className="text-gray-600 text-sm mb-2 font-medium">Estimasi Pendapatan</p>
+                    <p className="text-2xl font-bold text-purple-600 font-sans">
                       {formatCurrency(realEstimasiPendapatan)}
                     </p>
                   </div>
@@ -161,98 +205,96 @@ export default function AdminReportsPage() {
               </Grid>
 
               {/* Income by Space Type */}
-              <Card>
+              <Card className="mb-8">
                 <CardHeader>
                   <CardTitle>Distribusi Pendapatan per Tipe Space</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {realIncomeBySpaceType.length > 0 ? (
+                  {spaceTypeItems.length > 0 ? (
                     <div className="space-y-4">
-                      {realIncomeBySpaceType.map((income: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className="border border-gray-200 rounded-lg p-4"
-                        >
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h4 className="font-semibold text-gray-900">
-                                {income.tipe_space}
-                              </h4>
-                            </div>
-                            <Badge variant="primary">
-                              {income.total_reservasi} Reservasi
-                            </Badge>
-                          </div>
+                      {spaceTypeItems.map((income: any, idx: number) => {
+                        const percent = realEstimasiPendapatan > 0
+                          ? ((income.total_pendapatan / realEstimasiPendapatan) * 100).toFixed(1)
+                          : '0';
 
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <p className="text-gray-600">Pendapatan</p>
-                              <p className="font-bold text-green-600">
-                                {formatCurrency(income.total_pendapatan)}
-                              </p>
+                        return (
+                          <div
+                            key={idx}
+                            className="border border-slate-200 dark:border-slate-700 rounded-xl p-5 bg-white dark:bg-slate-800 shadow-sm"
+                          >
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                                  {income.tipe_space}
+                                </h4>
+                              </div>
+                              <Badge variant="primary">
+                                {income.total_reservasi} Reservasi
+                              </Badge>
                             </div>
-                            <div>
-                              <p className="text-gray-600">Avg/Hari</p>
-                              <p className="font-bold">
-                                {formatCurrency(
-                                  income.total_pendapatan /
-                                    new Date(year, month, 0).getDate()
-                                )}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">% Total</p>
-                              <p className="font-bold text-blue-600">
-                                {realEstimasiPendapatan > 0
-                                  ? ((income.total_pendapatan / realEstimasiPendapatan) * 100).toFixed(1)
-                                  : '0'}
-                                %
-                              </p>
-                            </div>
-                          </div>
 
-                          {/* Progress Bar */}
-                          <div className="mt-3 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-600 h-2 rounded-full transition-all"
-                              style={{
-                                width: `${realEstimasiPendapatan > 0 ? (income.total_pendapatan / realEstimasiPendapatan) * 100 : 0}%`,
-                              }}
-                            ></div>
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <p className="text-slate-500 text-xs font-medium">Pendapatan</p>
+                                <p className="font-bold text-emerald-600 font-sans text-base">
+                                  {formatCurrency(income.total_pendapatan)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500 text-xs font-medium">Avg/Hari</p>
+                                <p className="font-semibold text-slate-900 font-sans">
+                                  {formatCurrency(income.total_pendapatan / daysInMonth)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500 text-xs font-medium">% Total</p>
+                                <p className="font-bold text-indigo-600">
+                                  {percent}%
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="mt-3 bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                              <div
+                                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
+                                style={{ width: `${percent}%` }}
+                              ></div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <p className="text-gray-600 text-center py-4">
-                      Tidak ada data laporan untuk periode ini
+                    <p className="text-gray-600 text-center py-6">
+                      Tidak ada data transaksi pendapatan untuk bulan ini
                     </p>
                   )}
                 </CardContent>
               </Card>
 
               {/* Details */}
-              <div className="grid md:grid-cols-2 gap-6 mt-8">
+              <div className="grid md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Rincian Periode</CardTitle>
+                    <CardTitle>Rincian Periode Laporan</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Bulan:</span>
-                      <span className="font-semibold">
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-600">Bulan & Tahun:</span>
+                      <span className="font-semibold text-slate-900">
                         {getMonthName(month)} {year}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Total Hari:</span>
-                      <span className="font-semibold">
-                        {new Date(year, month, 0).getDate()} hari
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-600">Total Hari dalam Bulan:</span>
+                      <span className="font-semibold text-slate-900">
+                        {daysInMonth} hari
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Pencatatan:</span>
-                      <span className="font-semibold">
+                      <span className="text-slate-600">Waktu Sinkronisasi:</span>
+                      <span className="font-semibold text-slate-900">
                         {new Date().toLocaleString('id-ID')}
                       </span>
                     </div>
@@ -261,34 +303,24 @@ export default function AdminReportsPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Summary</CardTitle>
+                    <CardTitle>Ringkasan Kinerja</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Tingkat Occupancy:</span>
-                      <span className="font-semibold">
-                        {monthlyReport?.reservasi_selesai
-                          ? (
-                              (monthlyReport.reservasi_selesai /
-                                monthlyReport.total_reservasi) *
-                              100
-                            ).toFixed(1)
-                          : 0}
-                        %
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-600">Tingkat Occupancy:</span>
+                      <span className="font-bold text-indigo-600">
+                        {occupancyRate}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-600">Rata-rata Transaksi:</span>
+                      <span className="font-bold text-slate-900 font-sans">
+                        {formatCurrency(avgTransaction)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Rata-rata Transaksi:</span>
-                      <span className="font-semibold">
-                        {formatCurrency(
-                          (monthlyReport?.estimasi_pendapatan || 0) /
-                            (monthlyReport?.total_reservasi || 1)
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <Badge variant="success">Tersedia</Badge>
+                      <span className="text-slate-600">Status Data:</span>
+                      <Badge variant="success">Real-Time Sync</Badge>
                     </div>
                   </CardContent>
                 </Card>
