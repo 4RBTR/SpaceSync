@@ -66,15 +66,11 @@ export default function AdminSpacesPage() {
                 <Card key={space.id} className="flex flex-col">
                   {/* Image */}
                   <div className="w-full h-48 bg-slate-100 dark:bg-slate-800 rounded-lg mb-4 flex items-center justify-center text-slate-400 font-semibold overflow-hidden">
-                    {space.foto ? (
-                      <img
-                        src={getImageUrl(space.foto)}
-                        alt={space.nama_space}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      'Foto Ruangan'
-                    )}
+                    <img
+                      src={getImageUrl(space.foto, 'space')}
+                      alt={space.nama_space}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
                   <CardHeader>
