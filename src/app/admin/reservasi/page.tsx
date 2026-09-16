@@ -14,15 +14,15 @@ import { formatDate, formatCurrency, getStatusColor } from '@/lib/utils';
 export default function AdminReservasiPage() {
   const { isAuthenticated, userRole } = useAuth();
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
 
-  const { data: reservations, isLoading } = useApi(
+  const { data: reservations, isLoading, execute: refetch } = useApi(
     () =>
       apiClient.getAdminReservations({
         status: selectedStatus || undefined,
-        month,
-        year,
+        month: month ? parseInt(month) : undefined,
+        year: year ? parseInt(year) : undefined,
         limit: 50,
       }),
     isAuthenticated && userRole === 'admin_space'
@@ -38,6 +38,7 @@ export default function AdminReservasiPage() {
   ];
 
   const months = [
+    { value: '', label: 'Semua Bulan' },
     { value: '1', label: 'Januari' },
     { value: '2', label: 'Februari' },
     { value: '3', label: 'Maret' },
@@ -68,22 +69,23 @@ export default function AdminReservasiPage() {
               <Select
                 label="Bulan"
                 options={months}
-                value={month.toString()}
-                onChange={(e) => setMonth(parseInt(e.target.value))}
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
               />
               <Input
                 label="Tahun"
                 type="number"
+                placeholder="Semua Tahun"
                 value={year}
-                onChange={(e) => setYear(parseInt(e.target.value))}
+                onChange={(e) => setYear(e.target.value)}
               />
               <div className="flex items-end">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setSelectedStatus('');
-                    setMonth(new Date().getMonth() + 1);
-                    setYear(new Date().getFullYear());
+                    setMonth('');
+                    setYear('');
                   }}
                   className="w-full"
                 >

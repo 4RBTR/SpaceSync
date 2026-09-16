@@ -1,12 +1,14 @@
 import { axiosClient, ApiResponse } from './client';
 
 class UploadApi {
-  async uploadImage(file: File, folder: 'spaces' | 'members' | 'general'): Promise<ApiResponse> {
+  async uploadImage(file: File, folder: 'spaces' | 'members' | 'general' = 'general'): Promise<ApiResponse> {
     const formData = new FormData();
     formData.append('file', file);
 
+    const endpoint = folder === 'general' ? '/api/upload/image' : `/api/upload/${folder}`;
+
     return axiosClient.instance
-      .post(`/api/upload/${folder}`, formData)
+      .post(endpoint, formData)
       .then((res) => res.data);
   }
 }

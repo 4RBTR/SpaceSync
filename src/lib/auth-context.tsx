@@ -9,12 +9,17 @@ export interface AuthUser {
   id: string;
   nama_member?: string;
   nama_coworking?: string;
+  nama_pemilik?: string;
   username: string;
   role: UserRole;
   email?: string;
   no_telepon?: string;
+  telp?: string;
   alamat?: string;
+  instansi?: string;
+  deskripsi?: string;
   foto?: string;
+  [key: string]: any;
 }
 
 interface AuthContextType {

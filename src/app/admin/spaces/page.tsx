@@ -10,7 +10,7 @@ import { Input } from '@/components/Form';
 import { Button, IconButton } from '@/components/Button';
 import { Badge, Alert } from '@/components/Alert';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getImageUrl } from '@/lib/utils';
 
 export default function AdminSpacesPage() {
   const router = useRouter();
@@ -65,10 +65,10 @@ export default function AdminSpacesPage() {
               {filteredSpaces.map((space: any) => (
                 <Card key={space.id} className="flex flex-col">
                   {/* Image */}
-                  <div className="w-full h-48 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg mb-4 flex items-center justify-center text-white font-semibold overflow-hidden">
+                  <div className="w-full h-48 bg-slate-100 dark:bg-slate-800 rounded-lg mb-4 flex items-center justify-center text-slate-400 font-semibold overflow-hidden">
                     {space.foto ? (
                       <img
-                        src={space.foto}
+                        src={getImageUrl(space.foto)}
                         alt={space.nama_space}
                         className="w-full h-full object-cover"
                       />

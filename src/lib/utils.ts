@@ -163,3 +163,15 @@ export function getUpcomingReservations(reservations: any[]): any[] {
         new Date(b.tanggal_reservasi).getTime()
     );
 }
+
+export function getImageUrl(path?: string): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
