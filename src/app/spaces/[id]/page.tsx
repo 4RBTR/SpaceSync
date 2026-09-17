@@ -39,7 +39,7 @@ export default function SpaceDetailPage() {
     return (
       <div className="min-h-screen py-16">
         <Container className="max-w-xl text-center">
-          <Card p-8>
+          <Card className="p-8">
             <h2 className="text-2xl font-bold text-slate-900 mb-3">Ruangan Tidak Ditemukan</h2>
             <p className="text-slate-500 mb-6">Ruangan yang Anda cari mungkin telah dihapus atau belum tersedia.</p>
             <Link href="/spaces">
