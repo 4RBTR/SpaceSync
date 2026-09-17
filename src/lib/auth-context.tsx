@@ -49,46 +49,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = apiClient.getToken();
 
         if (token) {
-          const response = await apiClient.getProfile();
-          if (response.status && response.data) {
-            const userData = response.data;
-            const role = (localStorage.getItem('user_type') as UserRole) || userData.role || 'member';
+          const role = (localStorage.getItem('user_type') as UserRole) || 'member';
+          let adminProfileData: any = null;
 
-            const memberObj = userData.member || {};
-            const ownerObj = userData.space_owner || {};
-
-            let savedLocal: any = {};
+          if (role === 'admin_space') {
             try {
-              const localRaw = localStorage.getItem('user_data');
-              if (localRaw) savedLocal = JSON.parse(localRaw);
+              const adminRes = await apiClient.getAdminProfile();
+              if (adminRes.status && adminRes.data) {
+                adminProfileData = adminRes.data;
+              }
             } catch (e) {
-              // ignore json error
+              // ignore fetch error
             }
-
-            const mergedUser: AuthUser = {
-              id: userData.id || memberObj.id || ownerObj.id || savedLocal.id || '',
-              username: userData.username || savedLocal.username || '',
-              role,
-              nama_member: savedLocal.nama_member || memberObj.nama_member || userData.nama_member || '',
-              nama_coworking: savedLocal.nama_coworking || ownerObj.nama_coworking || userData.nama_coworking || '',
-              nama_pemilik: savedLocal.nama_pemilik || ownerObj.nama_pemilik || userData.nama_pemilik || '',
-              instansi: savedLocal.instansi || memberObj.instansi || userData.instansi || '',
-              no_telepon: savedLocal.no_telepon || savedLocal.telp || memberObj.telp || ownerObj.telp || userData.telp || userData.no_telepon || '',
-              telp: savedLocal.telp || savedLocal.no_telepon || memberObj.telp || ownerObj.telp || userData.telp || userData.no_telepon || '',
-              alamat: savedLocal.alamat || memberObj.alamat || ownerObj.alamat || userData.alamat || '',
-              deskripsi: savedLocal.deskripsi || ownerObj.deskripsi || userData.deskripsi || '',
-              foto: savedLocal.foto || memberObj.foto || ownerObj.foto || userData.foto || '',
-              foto_url: savedLocal.foto_url || memberObj.foto_url || ownerObj.foto_url || userData.foto_url || '',
-              ...memberObj,
-              ...ownerObj,
-              ...userData,
-              ...savedLocal,
-            };
-
-            setUser(mergedUser);
-            setUserRole(role);
-            localStorage.setItem('user_data', JSON.stringify(mergedUser));
           }
+
+          const response = await apiClient.getProfile().catch(() => null);
+          const userData = response?.data || {};
+
+          const memberObj = userData.member || {};
+          const ownerObj = userData.space_owner || adminProfileData || {};
+
+          let savedLocal: any = {};
+          try {
+            const localRaw = localStorage.getItem('user_data');
+            if (localRaw) savedLocal = JSON.parse(localRaw);
+          } catch (e) {
+            // ignore json error
+          }
+
+          const finalFoto = adminProfileData?.foto || adminProfileData?.foto_url || ownerObj.foto || ownerObj.foto_url || memberObj.foto || memberObj.foto_url || userData.foto || savedLocal.foto || '';
+
+          const mergedUser: AuthUser = {
+            id: userData.id || memberObj.id || ownerObj.id || savedLocal.id || '',
+            username: userData.username || savedLocal.username || '',
+            role,
+            nama_member: memberObj.nama_member || userData.nama_member || savedLocal.nama_member || '',
+            nama_coworking: adminProfileData?.nama_coworking || ownerObj.nama_coworking || userData.nama_coworking || savedLocal.nama_coworking || '',
+            nama_pemilik: adminProfileData?.nama_pemilik || ownerObj.nama_pemilik || userData.nama_pemilik || savedLocal.nama_pemilik || '',
+            instansi: memberObj.instansi || userData.instansi || savedLocal.instansi || '',
+            no_telepon: adminProfileData?.no_telepon || adminProfileData?.telp || ownerObj.telp || memberObj.telp || userData.telp || savedLocal.no_telepon || '',
+            telp: adminProfileData?.telp || adminProfileData?.no_telepon || ownerObj.telp || memberObj.telp || userData.telp || savedLocal.telp || '',
+            alamat: adminProfileData?.alamat || ownerObj.alamat || memberObj.alamat || userData.alamat || savedLocal.alamat || '',
+            deskripsi: adminProfileData?.deskripsi || ownerObj.deskripsi || userData.deskripsi || savedLocal.deskripsi || '',
+            foto: finalFoto,
+            foto_url: finalFoto,
+            ...memberObj,
+            ...ownerObj,
+            ...adminProfileData,
+            ...userData,
+            ...savedLocal,
+          };
+
+          // Override photo if adminProfileData or savedLocal has newer photo
+          if (finalFoto) {
+            mergedUser.foto = finalFoto;
+            mergedUser.foto_url = finalFoto;
+          }
+
+          setUser(mergedUser);
+          setUserRole(role);
+          localStorage.setItem('user_data', JSON.stringify(mergedUser));
         }
       } catch (error) {
         console.error('Auth initialization failed:', error);

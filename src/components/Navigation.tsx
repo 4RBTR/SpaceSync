@@ -35,6 +35,13 @@ export function Header() {
   };
 
   const links = isAuthenticated && userRole ? navigationLinks[userRole] : [];
+  const profileHref = userRole === 'admin_space' ? '/admin/profile' : '/profile';
+  const reservationHref = userRole === 'admin_space' ? '/admin/reservasi' : '/reservasi';
+
+  const userPhoto = user?.foto_url || user?.foto || user?.space_owner?.foto_url || user?.space_owner?.foto || user?.member?.foto_url || user?.member?.foto;
+  const userDisplayName = userRole === 'admin_space'
+    ? (user?.nama_coworking || user?.nama_pemilik || user?.username || 'Space Owner')
+    : (user?.nama_member || user?.username || 'Member Pro');
 
   return (
     <header className="sticky top-0 z-50 px-4 py-3 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] transition-all">
@@ -84,15 +91,15 @@ export function Header() {
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <div className="flex items-center gap-3">
-              <Link href="/profile" className="hidden sm:flex items-center gap-3 p-1.5 pr-3 rounded-full bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 hover:border-indigo-300 transition-all duration-300 group">
+              <Link href={profileHref} className="hidden sm:flex items-center gap-3 p-1.5 pr-3 rounded-full bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 hover:border-indigo-300 transition-all duration-300 group">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-xs shadow-md overflow-hidden flex-shrink-0 relative">
                   <span>
-                    {user?.nama_member?.charAt(0) || user?.nama_coworking?.charAt(0) || user?.username?.charAt(0) || 'U'}
+                    {userDisplayName.charAt(0).toUpperCase()}
                   </span>
-                  {(user?.foto_url || user?.foto) && (
+                  {userPhoto && typeof userPhoto === 'string' && userPhoto !== 'null' && userPhoto !== 'undefined' && (
                     <img
-                      src={getImageUrl(user.foto_url || user.foto, 'avatar')}
-                      alt={user?.nama_member || user?.nama_coworking || 'User'}
+                      src={getImageUrl(userPhoto, 'avatar')}
+                      alt={userDisplayName}
                       className="absolute inset-0 w-full h-full object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -102,7 +109,7 @@ export function Header() {
                 </div>
                 <div className="text-left">
                   <p className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-none group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                    {user?.nama_member || user?.nama_coworking}
+                    {userDisplayName}
                   </p>
                   <span className="inline-block mt-0.5 text-[9px] uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded-full">
                     {userRole === 'member' ? 'Member Pro' : 'Space Owner'}
@@ -110,7 +117,7 @@ export function Header() {
                 </div>
               </Link>
 
-              <UserMenu onLogout={handleLogout} />
+              <UserMenu onLogout={handleLogout} profileHref={profileHref} reservationHref={reservationHref} />
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -164,6 +171,13 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            <Link
+              href={profileHref}
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition"
+            >
+              Pengaturan Profil
+            </Link>
           </nav>
           {isAuthenticated && (
             <button
@@ -182,7 +196,7 @@ export function Header() {
   );
 }
 
-function UserMenu({ onLogout }: { onLogout: () => void }) {
+function UserMenu({ onLogout, profileHref, reservationHref }: { onLogout: () => void; profileHref: string; reservationHref: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -201,7 +215,7 @@ function UserMenu({ onLogout }: { onLogout: () => void }) {
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
             <Link
-              href="/profile"
+              href={profileHref}
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 transition"
             >
@@ -209,7 +223,7 @@ function UserMenu({ onLogout }: { onLogout: () => void }) {
               Pengaturan Profil
             </Link>
             <Link
-              href="/reservasi"
+              href={reservationHref}
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:text-indigo-600 transition"
             >
@@ -259,4 +273,3 @@ export function Sidebar({ items }: { items: Array<{ href: string; label: string;
     </aside>
   );
 }
-
