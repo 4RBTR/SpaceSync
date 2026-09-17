@@ -57,10 +57,16 @@ class AuthApi {
       .then((res) => res.data);
   }
 
+  /**
+   * Get logged-in user profile
+   */
   async getProfile(): Promise<ApiResponse> {
     return axiosClient.instance.get('/api/auth/profile').then((res) => res.data);
   }
 
+  /**
+   * Update logged-in user profile (nama, instansi, telp, alamat, foto)
+   */
   async updateProfile(data: {
     nama_member?: string;
     instansi?: string;
@@ -69,18 +75,18 @@ class AuthApi {
     alamat?: string;
     foto?: string;
   }): Promise<ApiResponse> {
+    const payload = { ...data };
+    if (payload.no_telepon && !payload.telp) {
+      payload.telp = payload.no_telepon;
+    }
     return axiosClient.instance
-      .put('/api/auth/profile', data)
-      .then((res) => res.data)
-      .catch(() => ({
-        status: true,
-        statusCode: 200,
-        message: 'Profil berhasil diperbarui',
-        data,
-        timestamp: new Date().toISOString(),
-      }));
+      .put('/api/auth/profile', payload)
+      .then((res) => res.data);
   }
 
+  /**
+   * Change user password
+   */
   async updatePassword(data: {
     old_password?: string;
     new_password?: string;
@@ -89,16 +95,12 @@ class AuthApi {
   }): Promise<ApiResponse> {
     return axiosClient.instance
       .put('/api/auth/change-password', data)
-      .then((res) => res.data)
-      .catch(() => ({
-        status: true,
-        statusCode: 200,
-        message: 'Password berhasil diperbarui',
-        data: null,
-        timestamp: new Date().toISOString(),
-      }));
+      .then((res) => res.data);
   }
 
+  /**
+   * Update member profile (Admin operation)
+   */
   async updateMemberProfile(
     memberId: string | number,
     data: {
@@ -110,7 +112,7 @@ class AuthApi {
       foto?: string;
     }
   ): Promise<ApiResponse> {
-    const payload: any = { ...data };
+    const payload: Record<string, any> = { ...data };
     if (payload.no_telepon && !payload.telp) {
       payload.telp = payload.no_telepon;
     }
@@ -118,38 +120,11 @@ class AuthApi {
       payload.no_telepon = payload.telp;
     }
 
-    try {
-      const res = await axiosClient.instance.put(`/api/admin/members/${memberId}`, payload);
-      return res.data;
-    } catch (err: any) {
-      if (err.response?.status === 403 || err.response?.status === 401) {
-        const adminLogin = await axiosClient.instance
-          .post('/api/auth/login', {
-            username: 'testadm_1789526408894',
-            password: 'password123',
-          })
-          .catch(() => null);
-
-        const adminToken = adminLogin?.data?.data?.access_token;
-        if (adminToken) {
-          const systemRes = await fetch(
-            `https://learn.smktelkom-mlg.sch.id/coworking/api/admin/members/${memberId}`,
-            {
-              method: 'PUT',
-              headers: {
-                'x-maker-key': 'mk_358b418ad1ea4a51838db21025b7dc24',
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${adminToken}`,
-              },
-              body: JSON.stringify(payload),
-            }
-          );
-          return await systemRes.json();
-        }
-      }
-      return { status: true, statusCode: 200, message: 'Profil diperbarui', data: payload, timestamp: new Date().toISOString() };
-    }
+    return axiosClient.instance
+      .put(`/api/admin/members/${memberId}`, payload)
+      .then((res) => res.data);
   }
 }
 
 export const authApi = new AuthApi();
+

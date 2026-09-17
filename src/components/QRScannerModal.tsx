@@ -84,7 +84,6 @@ export function QRScannerModal({ isOpen, onClose, onScanSuccess }: QRScannerModa
         });
 
         if (code && code.data) {
-          console.log('QR Code Terdeteksi:', code.data);
           stopCamera();
           onScanSuccess(code.data);
           return;
