@@ -78,7 +78,7 @@ function SpacesContent() {
 
       const ownerTelp = space.owner?.telp || space.owner?.no_telepon || '-';
       const ownerAlamat = space.owner?.alamat || space.alamat || '-';
-      const ownerFoto = space.owner?.foto || space.owner?.foto_url || space.foto_url || space.foto;
+      const ownerFoto = space.owner?.foto || space.owner?.foto_url || null;
 
       if (!map[ownerId]) {
         map[ownerId] = {
