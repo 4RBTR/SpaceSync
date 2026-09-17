@@ -12,6 +12,16 @@ import { Select } from '@/components/Form';
 import Link from 'next/link';
 import { formatDate, formatCurrency, getStatusColor, formatStatusLabel, getMonthName, getReservationPrice, getReservationSpace } from '@/lib/utils';
 
+function extractArray(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.data?.data)) return raw.data.data;
+  if (Array.isArray(raw.reservasi)) return raw.reservasi;
+  if (Array.isArray(raw.history)) return raw.history;
+  return [];
+}
+
 export default function HistoryPage() {
   const router = useRouter();
   const { isAuthenticated, userRole } = useAuth();
@@ -30,7 +40,7 @@ export default function HistoryPage() {
     isAuthenticated
   );
 
-  const { data: allReservations, isLoading: allLoading, execute: refetchAll } = useApi(
+  const { data: allReservationsRes, isLoading: allLoading, execute: refetchAll } = useApi(
     () => apiClient.getMyReservations(),
     isAuthenticated
   );
@@ -52,19 +62,41 @@ export default function HistoryPage() {
 
   const isLoading = historyLoading && allLoading;
 
-  // Extract array of items from API history response (handles object wrapping { data: [...] })
-  const apiHistoryList = Array.isArray(historyRes)
-    ? historyRes
-    : (Array.isArray(historyRes?.data) ? historyRes.data : []);
+  // Extract arrays from both API responses
+  const apiHistoryList = extractArray(historyRes);
+  const allReservationsList = extractArray(allReservationsRes);
 
-  // Fallback: filter all member reservations by selected month & year
-  const fallbackList = (allReservations || []).filter((r: any) => {
-    if (!r.tanggal_reservasi) return false;
-    const d = new Date(r.tanggal_reservasi);
-    return d.getMonth() + 1 === month && d.getFullYear() === year;
-  });
+  // Timezone-safe month & year matching
+  const filterByMonthYear = (list: any[]) => {
+    return list.filter((r: any) => {
+      if (!r.tanggal_reservasi) return false;
+      let rYear: number, rMonth: number;
+      if (typeof r.tanggal_reservasi === 'string' && r.tanggal_reservasi.includes('-')) {
+        const parts = r.tanggal_reservasi.substring(0, 10).split('-');
+        rYear = parseInt(parts[0], 10);
+        rMonth = parseInt(parts[1], 10);
+      } else {
+        const d = new Date(r.tanggal_reservasi);
+        rYear = d.getFullYear();
+        rMonth = d.getMonth() + 1;
+      }
+      return rMonth === month && rYear === year;
+    });
+  };
 
-  const historyList = apiHistoryList.length > 0 ? apiHistoryList : fallbackList;
+  // Step 1: Filtered API history list
+  let finalHistoryList = filterByMonthYear(apiHistoryList);
+
+  // Step 2: Fallback to allReservations list filtered by month & year
+  if (finalHistoryList.length === 0) {
+    finalHistoryList = filterByMonthYear(allReservationsList);
+  }
+
+  // Step 3: Ultimate fallback if filter yields 0 but user has reservations
+  const isUsingGlobalFallback = finalHistoryList.length === 0 && allReservationsList.length > 0;
+  if (isUsingGlobalFallback) {
+    finalHistoryList = allReservationsList;
+  }
 
   return (
     <div className="min-h-screen py-8">
@@ -89,22 +121,38 @@ export default function HistoryPage() {
                     options={yearOptions}
                   />
                 </div>
-                <div className="mb-4">
+                <div className="mb-4 flex gap-2">
                   <Button onClick={handleFilter} isLoading={isLoading}>
                     Filter
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setMonth(currentDate.getMonth() + 1);
+                      setYear(currentDate.getFullYear());
+                      handleFilter();
+                    }}
+                  >
+                    Reset
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {isUsingGlobalFallback && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium flex items-center justify-between">
+              <span>Menampilkan seluruh riwayat reservasi Anda ({allReservationsList.length} reservasi ditemukan)</span>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="text-center py-12">
-              <p className="text-slate-500">Memuat riwayat...</p>
+              <p className="text-slate-500 font-medium">Memuat riwayat reservasi...</p>
             </div>
-          ) : historyList.length > 0 ? (
+          ) : finalHistoryList.length > 0 ? (
             <div className="space-y-4">
-              {historyList.map((reservation: any) => {
+              {finalHistoryList.map((reservation: any) => {
                 const spaceObj = getReservationSpace(reservation);
                 const totalBiaya = getReservationPrice(reservation);
                 const statusLabel = formatStatusLabel(reservation.status);

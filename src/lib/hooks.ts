@@ -34,8 +34,7 @@ export function useApi<T>(
   }, []);
 
   useEffect(() => {
-    if (immediate && !hasRun.current) {
-      hasRun.current = true;
+    if (immediate) {
       execute();
     }
   }, [immediate, execute]);
