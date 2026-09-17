@@ -7,7 +7,7 @@ import { useApi } from '@/lib/hooks';
 import { apiClient } from '@/lib/api';
 import { Container, Card, Section } from '@/components/Layout';
 import { Input } from '@/components/Form';
-import { Button, IconButton } from '@/components/Button';
+import { Button } from '@/components/Button';
 import Link from 'next/link';
 import { getInitials, getImageUrl } from '@/lib/utils';
 
@@ -23,10 +23,10 @@ export default function AdminMembersPage() {
   const router = useRouter();
   const { isAuthenticated, userRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterScope, setFilterScope] = useState<'all' | 'customers_only'>('customers_only');
+  const [filterScope, setFilterScope] = useState<'customers_only' | 'all'>('customers_only');
 
   // Fetch registered members
-  const { data: membersRes, isLoading: membersLoading, execute: refetch } = useApi(
+  const { data: membersRes, isLoading: membersLoading } = useApi(
     () => apiClient.getAdminMembers(1, 100),
     isAuthenticated && userRole === 'admin_space'
   );
@@ -83,23 +83,12 @@ export default function AdminMembersPage() {
     });
   }, [membersList, memberReservationsMap, filterScope, searchQuery]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Apakah Anda yakin ingin menghapus member ini?')) {
-      try {
-        await apiClient.deleteAdminMember(id);
-        refetch();
-      } catch (err) {
-        console.error('Gagal menghapus member:', err);
-      }
-    }
-  };
-
   const isLoading = membersLoading || resLoading;
 
   return (
     <div className="min-h-screen py-8 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Container>
-        <Section title="Kelola Members & Pengunjung Space" description="Daftar member dan penyewa ruangan Coworking Space Anda">
+        <Section title="Detail Members & Transaksi Pengunjung" description="Daftar member dan penyewa ruangan Coworking Space Anda">
           
           {/* Action & Filter Toolbar */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-6 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
@@ -128,19 +117,14 @@ export default function AdminMembersPage() {
               </button>
             </div>
 
-            {/* Search Input & Add Member */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* Search Input */}
+            <div className="w-full md:w-auto min-w-[240px]">
               <Input
                 placeholder="Cari nama, username, instansi..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="text-xs bg-slate-50 dark:bg-slate-800"
               />
-              <Link href="/admin/members/add">
-                <Button className="text-xs flex-shrink-0">
-                  + Tambah Member
-                </Button>
-              </Link>
             </div>
           </div>
 
@@ -218,17 +202,11 @@ export default function AdminMembersPage() {
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <div className="flex justify-center gap-2">
-                              <Link href={`/admin/members/${member.id}`}>
-                                <IconButton title="Edit Member" icon="✏️" />
-                              </Link>
-                              <IconButton
-                                onClick={() => handleDelete(member.id)}
-                                title="Hapus Member"
-                                icon="🗑️"
-                                className="text-rose-500 hover:bg-rose-50"
-                              />
-                            </div>
+                            <Link href={`/admin/members/${member.id}`}>
+                              <Button variant="outline" className="text-xs px-3 py-1.5 shadow-sm">
+                                👁️ Detail & Transaksi
+                              </Button>
+                            </Link>
                           </td>
                         </tr>
                       );
