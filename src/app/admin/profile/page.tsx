@@ -299,18 +299,18 @@ export default function AdminProfilePage() {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Nomor Telepon</p>
-                      <p className="text-slate-900 dark:text-white font-medium">{profile?.no_telepon || profile?.telp || '-'}</p>
+                      <p className="text-slate-900 dark:text-white font-medium">{profile?.no_telepon || profile?.telp || user?.no_telepon || user?.telp || '-'}</p>
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Alamat Space</p>
-                      <p className="text-slate-900 dark:text-white font-medium">{profile?.alamat || '-'}</p>
+                      <p className="text-slate-900 dark:text-white font-medium">{profile?.alamat || user?.alamat || '-'}</p>
                     </div>
                   </div>
 
-                  {profile?.deskripsi && (
+                  {(profile?.deskripsi || user?.deskripsi) && (
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Deskripsi Space</p>
-                      <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">{profile.deskripsi}</p>
+                      <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">{profile?.deskripsi || user?.deskripsi}</p>
                     </div>
                   )}
 
