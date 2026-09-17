@@ -33,27 +33,38 @@ export default function ETicketPage() {
   };
 
   const handleDownload = () => {
-    const svgElement = document.querySelector('svg');
-    if (svgElement) {
+    const svgElement = document.getElementById('qr-code-svg') as SVGElement | null;
+    if (!svgElement) return;
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
       const canvas = document.createElement('canvas');
+      const size = 600; // High resolution 600x600 PNG
+      canvas.width = size;
+      canvas.height = size;
       const ctx = canvas.getContext('2d');
-      const img = new Image();
-      const svg = new XMLSerializer().serializeToString(svgElement);
-      const blob = new Blob([svg], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx?.drawImage(img, 0, 0);
+
+      if (ctx) {
+        // Solid white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+
+        // Draw QR Code
+        ctx.drawImage(img, 0, 0, size, size);
+
         const link = document.createElement('a');
+        link.download = `qr-code-eticket-${reservationId}.png`;
         link.href = canvas.toDataURL('image/png');
-        link.download = `e-ticket-${reservationId}.png`;
         link.click();
-        URL.revokeObjectURL(url);
-      };
-      img.src = url;
-    }
+      }
+
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
   };
 
   if (isLoading) {
@@ -187,6 +198,7 @@ export default function ETicketPage() {
             <div className="flex flex-col items-center justify-center bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
               <div className="p-2.5 bg-white rounded-xl border border-slate-200 shadow-sm">
                 <QRCodeSVG
+                  id="qr-code-svg"
                   value={JSON.stringify({
                     id: reservation.id,
                     space: spaceObj?.nama_space || reservation.nama_space,
