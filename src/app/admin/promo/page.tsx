@@ -11,19 +11,31 @@ import { Badge } from '@/components/Alert';
 import Link from 'next/link';
 import { formatDate } from '@/lib/utils';
 
+function extractArray(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.data?.data)) return raw.data.data;
+  return [];
+}
+
 export default function AdminPromoPage() {
   const { isAuthenticated, userRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: diskons, isLoading, execute: refetch } = useApi(
-    () => apiClient.getAdminDiskon(1, 20),
+  const { data: diskonsRes, isLoading, execute: refetch } = useApi(
+    () => apiClient.getAdminDiskon(1, 50),
     isAuthenticated && userRole === 'admin_space'
   );
 
+  const diskonsList = extractArray(diskonsRes);
+
   const filteredDiskons =
-    diskons?.filter((d: any) =>
-      d.nama_diskon?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    diskonsList.filter((d: any) =>
+      d.nama_diskon?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.kode_diskon?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.kode?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   const handleDelete = async (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus promo ini?')) {
@@ -75,7 +87,7 @@ export default function AdminPromoPage() {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="text-left px-6 py-3 font-semibold text-gray-900">
-                        Nama Promo
+                        Nama / Kode Promo
                       </th>
                       <th className="text-center px-6 py-3 font-semibold text-gray-900">
                         Diskon
@@ -101,15 +113,20 @@ export default function AdminPromoPage() {
                         className="border-b border-gray-200 hover:bg-gray-50 transition"
                       >
                         <td className="px-6 py-4 font-medium text-gray-900">
-                          {diskon.nama_diskon}
+                          <span className="font-bold text-slate-900 block">{diskon.nama_diskon}</span>
+                          {diskon.kode_diskon && (
+                            <span className="text-xs font-mono text-indigo-600 uppercase font-bold">
+                              Kode: {diskon.kode_diskon}
+                            </span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-center font-semibold text-green-600">
+                        <td className="px-6 py-4 text-center font-bold text-emerald-600 font-sans">
                           {diskon.persentase_diskon}%
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="px-6 py-4 text-gray-600 text-sm">
                           {formatDate(diskon.tanggal_awal || diskon.tanggal_mulai)}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="px-6 py-4 text-gray-600 text-sm">
                           {formatDate(diskon.tanggal_akhir)}
                         </td>
                         <td className="px-6 py-4 text-center">

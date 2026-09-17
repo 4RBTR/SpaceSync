@@ -12,20 +12,30 @@ import { Badge, Alert } from '@/components/Alert';
 import Link from 'next/link';
 import { formatCurrency, getImageUrl } from '@/lib/utils';
 
+function extractArray(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.data?.data)) return raw.data.data;
+  return [];
+}
+
 export default function AdminSpacesPage() {
   const router = useRouter();
   const { isAuthenticated, userRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: spaces, isLoading, execute: refetch } = useApi(
-    () => apiClient.getAdminSpaces(1, 20),
+  const { data: spacesRes, isLoading, execute: refetch } = useApi(
+    () => apiClient.getAdminSpaces(1, 50),
     isAuthenticated && userRole === 'admin_space'
   );
 
+  const spacesList = extractArray(spacesRes);
+
   const filteredSpaces =
-    spaces?.filter((s: any) =>
+    spacesList.filter((s: any) =>
       s.nama_space?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    );
 
   const handleDelete = async (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus ruangan ini?')) {
@@ -78,8 +88,8 @@ export default function AdminSpacesPage() {
                     <div className="flex justify-between items-start gap-2">
                       <div>
                         <CardTitle className="text-lg">{space.nama_space}</CardTitle>
-                        <Badge variant="primary" className="mt-2">
-                          {space.tipe_space}
+                        <Badge variant="primary" className="mt-2 capitalize">
+                          {space.tipe_space || space.tipe || 'Coworking Space'}
                         </Badge>
                       </div>
                     </div>
@@ -93,12 +103,12 @@ export default function AdminSpacesPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Harga:</span>
-                        <span className="font-semibold text-green-600">
+                        <span className="font-semibold text-emerald-600 font-sans">
                           {formatCurrency(space.harga_per_jam)}/jam
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Tersedia:</span>
+                        <span className="text-gray-600">Status:</span>
                         <Badge variant="success">Aktif</Badge>
                       </div>
                     </div>

@@ -11,22 +11,33 @@ import { Button, IconButton } from '@/components/Button';
 import Link from 'next/link';
 import { getInitials, getImageUrl } from '@/lib/utils';
 
+function extractArray(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.data?.data)) return raw.data.data;
+  return [];
+}
+
 export default function AdminMembersPage() {
   const router = useRouter();
   const { isAuthenticated, userRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data: members, isLoading, execute: refetch } = useApi(
+  const { data: membersRes, isLoading, execute: refetch } = useApi(
     () => apiClient.getAdminMembers(currentPage, 10),
     isAuthenticated && userRole === 'admin_space'
   );
 
+  const membersList = extractArray(membersRes);
+
   const filteredMembers =
-    members?.filter((m: any) =>
+    membersList.filter((m: any) =>
       m.nama_member?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.email?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+      m.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.username?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
   const handleDelete = async (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus member ini?')) {
@@ -68,7 +79,7 @@ export default function AdminMembersPage() {
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50">
                       <th className="text-left px-6 py-3 font-semibold text-gray-900">Nama</th>
-                      <th className="text-left px-6 py-3 font-semibold text-gray-900">Email</th>
+                      <th className="text-left px-6 py-3 font-semibold text-gray-900">Username / Email</th>
                       <th className="text-left px-6 py-3 font-semibold text-gray-900">No. Telepon</th>
                       <th className="text-left px-6 py-3 font-semibold text-gray-900">Instansi</th>
                       <th className="text-center px-6 py-3 font-semibold text-gray-900">Aksi</th>
@@ -99,11 +110,11 @@ export default function AdminMembersPage() {
                             <span className="font-semibold">{member.nama_member}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-600">{member.email}</td>
+                        <td className="px-6 py-4 text-gray-600">{member.username || member.email || '-'}</td>
                         <td className="px-6 py-4 text-gray-600">
-                          {member.no_telepon}
+                          {member.telp || member.no_telepon || '-'}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">{member.instansi}</td>
+                        <td className="px-6 py-4 text-gray-600">{member.instansi || '-'}</td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex justify-center gap-2">
                             <Link href={`/admin/members/${member.id}`}>

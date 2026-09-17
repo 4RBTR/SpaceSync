@@ -9,7 +9,16 @@ import { Container, Card, CardHeader, CardTitle, CardContent, Section, PageHeade
 import { Badge } from '@/components/Alert';
 import { Button } from '@/components/Button';
 import Link from 'next/link';
-import { formatCurrency, getInitials, getImageUrl } from '@/lib/utils';
+import { formatCurrency, getInitials, getImageUrl, formatStatusLabel, getReservationPrice, getReservationSpace, formatDate } from '@/lib/utils';
+
+function extractArray(raw: any): any[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw.data)) return raw.data;
+  if (Array.isArray(raw.data?.data)) return raw.data.data;
+  if (Array.isArray(raw.reservasi)) return raw.reservasi;
+  return [];
+}
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -26,8 +35,8 @@ export default function AdminDashboardPage() {
     isAuthenticated
   );
 
-  const { data: reservations } = useApi(
-    () => apiClient.getAdminReservations({ limit: 10 }),
+  const { data: reservationsRes } = useApi(
+    () => apiClient.getAdminReservations({ limit: 100 }),
     isAuthenticated
   );
 
@@ -36,10 +45,26 @@ export default function AdminDashboardPage() {
     return apiClient.getMonthlyReports(now.getMonth() + 1, now.getFullYear());
   }, isAuthenticated);
 
-  const pendingReservations =
-    reservations?.filter((r: any) => r.status === 'Belum Dikonfirmasi') || [];
+  const reservations = extractArray(reservationsRes);
 
-  const activeReservations = reservations?.filter((r: any) => r.status === 'Aktif/Digunakan') || [];
+  const pendingReservations = reservations.filter((r: any) => {
+    const s = String(r.status).toLowerCase();
+    const label = formatStatusLabel(r.status);
+    return s === 'belum_dikonfirm' || s.includes('belum') || s.includes('pending') || label === 'Belum Dikonfirmasi';
+  });
+
+  const activeReservations = reservations.filter((r: any) => {
+    const s = String(r.status).toLowerCase();
+    const label = formatStatusLabel(r.status);
+    return s === 'aktif' || s.includes('aktif') || s.includes('guna') || label === 'Aktif/Digunakan';
+  });
+
+  const reportObj = monthlyReport?.ringkasan ? monthlyReport : (monthlyReport?.data || monthlyReport);
+  const totalEstimasiPendapatan = reservations.length > 0
+    ? reservations
+        .filter((r: any) => String(r.status).toLowerCase() !== 'dibatalkan')
+        .reduce((sum: number, r: any) => sum + getReservationPrice(r), 0)
+    : Number(reportObj?.ringkasan?.estimasi_pendapatan_total || reportObj?.estimasi_pendapatan || 0);
 
   return (
     <div className="min-h-screen py-8 md:py-12 relative">
@@ -59,7 +84,7 @@ export default function AdminDashboardPage() {
               <div>
                 <p className="text-slate-500 font-medium text-sm mb-2">Total Reservasi</p>
                 <p className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                  {reservations?.length || 0}
+                  {reservations.length}
                 </p>
               </div>
               <div className="w-14 h-14 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl flex items-center justify-center shadow-sm">
@@ -106,15 +131,8 @@ export default function AdminDashboardPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-slate-500 font-medium text-sm mb-2">Estimasi Pendapatan</p>
-                <p className="text-2xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600">
-                  {formatCurrency(
-                    (reservations || [])
-                      .filter((r: any) => r.status !== 'Dibatalkan')
-                      .reduce((sum: number, r: any) => sum + (Number(r.total_harga) || 0), 0) ||
-                    monthlyReport?.ringkasan?.estimasi_pendapatan_total ||
-                    monthlyReport?.estimasi_pendapatan ||
-                    0
-                  )}
+                <p className="text-2xl font-extrabold text-slate-900 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600 font-sans">
+                  {formatCurrency(totalEstimasiPendapatan)}
                 </p>
               </div>
               <div className="w-14 h-14 bg-gradient-to-br from-violet-100 to-violet-50 rounded-xl flex items-center justify-center shadow-sm">
@@ -142,37 +160,44 @@ export default function AdminDashboardPage() {
               <CardContent>
                 {pendingReservations.length > 0 ? (
                   <div className="space-y-4">
-                    {pendingReservations.map((reservation: any) => (
-                      <div
-                        key={reservation.id}
-                        className="p-5 border border-amber-200 bg-amber-50/50 rounded-xl flex justify-between items-center transition-all hover:bg-amber-50 hover:shadow-sm"
-                      >
-                        <div className="flex-1">
-                          <h4 className="font-bold text-slate-900 text-lg mb-1 font-heading">
-                            {reservation.member?.nama_member}
-                          </h4>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 font-medium">
-                            <span className="flex items-center gap-1">
-                              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                              {reservation.space?.nama_space}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                              {reservation.tanggal_reservasi}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                              {reservation.jam_mulai} ({reservation.durasi_jam} jam)
-                            </span>
+                    {pendingReservations.map((reservation: any) => {
+                      const spaceObj = getReservationSpace(reservation);
+                      const harga = getReservationPrice(reservation);
+                      return (
+                        <div
+                          key={reservation.id}
+                          className="p-5 border border-amber-200 bg-amber-50/50 rounded-xl flex justify-between items-center transition-all hover:bg-amber-50 hover:shadow-sm"
+                        >
+                          <div className="flex-1">
+                            <h4 className="font-bold text-slate-900 text-lg mb-1 font-heading">
+                              {reservation.member?.nama_member || 'Member SpaceSync'}
+                            </h4>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 font-medium">
+                              <span className="flex items-center gap-1">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                {spaceObj?.nama_space || reservation.nama_space || 'Ruangan'}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                {formatDate(reservation.tanggal_reservasi)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                {reservation.jam_mulai || '10:00'} ({reservation.durasi_jam || 1} jam)
+                              </span>
+                              <span className="font-semibold text-emerald-600 font-sans">
+                                {formatCurrency(harga)}
+                              </span>
+                            </div>
                           </div>
+                          <Link href={`/admin/reservasi/${reservation.id}`} className="ml-4 shrink-0">
+                            <Button size="sm" className="bg-amber-500 hover:bg-amber-600 focus:ring-amber-500 shadow-none hover:shadow-md">
+                              Proses
+                            </Button>
+                          </Link>
                         </div>
-                        <Link href={`/admin/reservasi/${reservation.id}`} className="ml-4 shrink-0">
-                          <Button size="sm" className="bg-amber-500 hover:bg-amber-600 focus:ring-amber-500 shadow-none hover:shadow-md">
-                            Proses
-                          </Button>
-                        </Link>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -268,7 +293,7 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <p className="text-slate-500 text-sm font-medium mb-1">Telepon</p>
-                <p className="font-bold text-slate-900 text-lg">{profile?.no_telepon || '-'}</p>
+                <p className="font-bold text-slate-900 text-lg">{profile?.no_telepon || profile?.telp || '-'}</p>
               </div>
               <div>
                 <p className="text-slate-500 text-sm font-medium mb-1">Alamat</p>
