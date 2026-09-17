@@ -36,7 +36,7 @@ export default function HistoryPage() {
   }, [isAuthenticated, userRole, router]);
 
   const { data: historyRes, isLoading: historyLoading, execute: refetchHistory } = useApi(
-    () => apiClient.getMyReservationHistory(month, year),
+    () => apiClient.getMyHistoryReservations().catch(() => apiClient.getMyReservationHistory(month, year)),
     isAuthenticated
   );
 

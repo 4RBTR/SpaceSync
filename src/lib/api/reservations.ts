@@ -17,9 +17,23 @@ class ReservationsApi {
     return axiosClient.instance.get('/api/reservasi/my').then((res) => res.data);
   }
 
+  async getMyActiveReservations(): Promise<ApiResponse> {
+    return axiosClient.instance.get('/api/reservasi/my/active').then((res) => res.data);
+  }
+
+  async getMyHistoryReservations(): Promise<ApiResponse> {
+    return axiosClient.instance.get('/api/reservasi/my/history').then((res) => res.data);
+  }
+
   async getMyReservationHistory(month: number, year: number): Promise<ApiResponse> {
     return axiosClient.instance
       .get('/api/reservasi/my/history', { params: { month, year } })
+      .then((res) => res.data);
+  }
+
+  async getETicket(id: string): Promise<ApiResponse> {
+    return axiosClient.instance
+      .get(`/api/reservasi/${id}/e-ticket`)
       .then((res) => res.data);
   }
 

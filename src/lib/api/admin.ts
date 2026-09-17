@@ -215,6 +215,10 @@ class AdminApi {
   }
 
   // Admin Reports endpoints
+  async getAdminReports(): Promise<ApiResponse> {
+    return axiosClient.instance.get('/api/admin/reports').then((res) => res.data);
+  }
+
   async getMonthlyReports(month: number, year: number): Promise<ApiResponse> {
     return axiosClient.instance
       .get('/api/admin/reports/monthly', { params: { month, year } })

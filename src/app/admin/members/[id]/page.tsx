@@ -25,6 +25,25 @@ export default function AdminMemberDetailPage() {
   const memberId = params.id as string;
   const { isAuthenticated, userRole } = useAuth();
 
+  const handleUpdateNote = async (newInstansi: string) => {
+    try {
+      await apiClient.updateAdminMember(memberId, { instansi: newInstansi });
+    } catch (e) {
+      console.warn('updateAdminMember warning:', e);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (confirm('Apakah Anda yakin ingin menghapus data member ini dari sistem?')) {
+      try {
+        await apiClient.deleteAdminMember(memberId);
+        router.push('/admin/members');
+      } catch (e) {
+        console.error('Gagal menghapus member:', e);
+      }
+    }
+  };
+
   // Fetch Member Detail
   const { data: memberDetail, isLoading: memberLoading } = useApi(
     () => apiClient.getAdminMemberDetail(memberId),

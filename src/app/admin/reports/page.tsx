@@ -20,6 +20,11 @@ export default function AdminReportsPage() {
     isAuthenticated && userRole === 'admin_space'
   );
 
+  const { data: generalReport } = useApi(
+    () => apiClient.getAdminReports(),
+    isAuthenticated && userRole === 'admin_space'
+  );
+
   const { data: monthlyReport, isLoading: monthlyLoading, execute: refetchMonthly } = useApi(
     () => apiClient.getMonthlyReports(month, year),
     isAuthenticated && userRole === 'admin_space'

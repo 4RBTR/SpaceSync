@@ -38,6 +38,11 @@ export default function BookingPage() {
   const { data: space } = useApi(() => apiClient.getSpaceDetail(spaceId), isAuthenticated);
   const { data: discounts } = useApi(() => apiClient.getActiveDiskon(), isAuthenticated);
 
+  const { data: diskonDetail } = useApi(
+    () => apiClient.getDiskonDetail(formData.id_diskon),
+    isAuthenticated && !!formData.id_diskon
+  );
+
   const selectedDiscount = discounts?.find((d: any) => String(d.id) === String(formData.id_diskon));
   const totalPrice = calculateTotalPrice(
     space?.harga_per_jam || 0,
@@ -45,24 +50,35 @@ export default function BookingPage() {
     selectedDiscount?.persentase_diskon
   );
 
-  const handleApplyPromo = () => {
+  const handleApplyPromo = async () => {
     setPromoError('');
     if (!promoInput.trim()) return;
 
-    const trimmed = promoInput.trim().toLowerCase();
-    const matched = discounts?.find(
-      (d: any) =>
-        (d.nama_diskon && String(d.nama_diskon).toLowerCase() === trimmed) ||
-        (d.kode_diskon && String(d.kode_diskon).toLowerCase() === trimmed) ||
-        (d.kode && String(d.kode).toLowerCase() === trimmed)
-    );
+    const trimmed = promoInput.trim();
+    try {
+      const checkRes = await apiClient.checkDiskonCode(trimmed);
+      if (checkRes.status && checkRes.data) {
+        const matchedId = checkRes.data.id || checkRes.data.id_diskon || checkRes.data.id_diskon_space;
+        setFormData((prev) => ({ ...prev, id_diskon: String(matchedId) }));
+        setPromoError('');
+      } else {
+        throw new Error(checkRes.message || 'Kode promo tidak valid');
+      }
+    } catch (e: any) {
+      const matched = discounts?.find(
+        (d: any) =>
+          (d.nama_diskon && String(d.nama_diskon).toLowerCase() === trimmed.toLowerCase()) ||
+          (d.kode_diskon && String(d.kode_diskon).toLowerCase() === trimmed.toLowerCase()) ||
+          (d.kode && String(d.kode).toLowerCase() === trimmed.toLowerCase())
+      );
 
-    if (matched) {
-      setFormData((prev) => ({ ...prev, id_diskon: String(matched.id) }));
-      setPromoError('');
-    } else {
-      setFormData((prev) => ({ ...prev, id_diskon: '' }));
-      setPromoError('Kode promo tidak valid atau telah kadaluarsa');
+      if (matched) {
+        setFormData((prev) => ({ ...prev, id_diskon: String(matched.id) }));
+        setPromoError('');
+      } else {
+        setFormData((prev) => ({ ...prev, id_diskon: '' }));
+        setPromoError(e.message || 'Kode promo tidak valid atau telah kadaluarsa');
+      }
     }
   };
 
@@ -91,6 +107,19 @@ export default function BookingPage() {
 
     try {
       setIsSubmitting(true);
+
+      // Cek ketersediaan jam & tanggal via API getSpaceAvailability
+      try {
+        const availRes = await apiClient.getSpaceAvailability(formData.tanggal_reservasi, formData.jam_mulai);
+        if (availRes && availRes.status === false) {
+          setError(availRes.message || 'Ruangan tidak tersedia pada jam/tanggal pilihan Anda.');
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (availErr) {
+        console.warn('getSpaceAvailability check warning:', availErr);
+      }
+
       const response = await apiClient.createReservation({
         id_space: spaceId,
         tanggal_reservasi: formData.tanggal_reservasi,

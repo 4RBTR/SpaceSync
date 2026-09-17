@@ -23,10 +23,16 @@ export default function ReservasiPage() {
     }
   }, [isAuthenticated, authLoading, router]);
 
-  const { data: reservations, isLoading } = useApi(
-    () => apiClient.getMyReservations(),
+  const { data: rawReservations, isLoading } = useApi(
+    () => apiClient.getMyActiveReservations(),
     isAuthenticated
   );
+
+  const reservations = Array.isArray(rawReservations)
+    ? rawReservations
+    : Array.isArray((rawReservations as any)?.data)
+    ? (rawReservations as any).data
+    : [];
 
   const filteredReservations =
     selectedStatus

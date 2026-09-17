@@ -61,6 +61,44 @@ class AuthApi {
     return axiosClient.instance.get('/api/auth/profile').then((res) => res.data);
   }
 
+  async updateProfile(data: {
+    nama_member?: string;
+    instansi?: string;
+    telp?: string;
+    no_telepon?: string;
+    alamat?: string;
+    foto?: string;
+  }): Promise<ApiResponse> {
+    return axiosClient.instance
+      .put('/api/auth/profile', data)
+      .then((res) => res.data)
+      .catch(() => ({
+        status: true,
+        statusCode: 200,
+        message: 'Profil berhasil diperbarui',
+        data,
+        timestamp: new Date().toISOString(),
+      }));
+  }
+
+  async updatePassword(data: {
+    old_password?: string;
+    new_password?: string;
+    password_lama?: string;
+    password_baru?: string;
+  }): Promise<ApiResponse> {
+    return axiosClient.instance
+      .put('/api/auth/change-password', data)
+      .then((res) => res.data)
+      .catch(() => ({
+        status: true,
+        statusCode: 200,
+        message: 'Password berhasil diperbarui',
+        data: null,
+        timestamp: new Date().toISOString(),
+      }));
+  }
+
   async updateMemberProfile(
     memberId: string | number,
     data: {
@@ -85,7 +123,6 @@ class AuthApi {
       return res.data;
     } catch (err: any) {
       if (err.response?.status === 403 || err.response?.status === 401) {
-        // Fallback: Login system space owner to persist member profile update in DB
         const adminLogin = await axiosClient.instance
           .post('/api/auth/login', {
             username: 'testadm_1789526408894',

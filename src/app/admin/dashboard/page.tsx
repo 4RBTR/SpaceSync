@@ -35,6 +35,11 @@ export default function AdminDashboardPage() {
     isAuthenticated
   );
 
+  const { data: makerInfo } = useApi(
+    () => apiClient.getMakerInfo(),
+    isAuthenticated
+  );
+
   const { data: reservationsRes } = useApi(
     () => apiClient.getAdminReservations({ limit: 100 }),
     isAuthenticated

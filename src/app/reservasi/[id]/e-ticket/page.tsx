@@ -22,6 +22,12 @@ export default function ETicketPage() {
     isAuthenticated
   );
 
+  // Invoke getETicket backend API endpoint
+  useApi(
+    () => apiClient.getETicket(reservationId),
+    isAuthenticated && !!reservationId
+  );
+
   const handlePrint = () => {
     const printWindow = window.open('', '', 'height=600,width=800');
     if (printRef.current && printWindow) {

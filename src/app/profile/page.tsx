@@ -15,8 +15,13 @@ export default function ProfilePage() {
   const { isAuthenticated, userRole, user, setUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
+
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const [formData, setFormData] = useState({
     nama_member: '',
@@ -25,6 +30,13 @@ export default function ProfilePage() {
     alamat: '',
     foto: null as File | null,
   });
+
+  const [passwordData, setPasswordData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: '',
+  });
+
   const [preview, setPreview] = useState('');
   const [imgError, setImgError] = useState(false);
 
@@ -64,6 +76,11 @@ export default function ProfilePage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -97,38 +114,35 @@ export default function ProfilePage() {
         }
       }
 
-      const memberId = user?.member?.id || user?.id_member || user?.id;
       const finalFoto = fotoFilename || user?.foto || user?.foto_url || '';
 
-      // Panggil API Backend sesuai role agar data tersimpan di server DB
-      if (userRole === 'admin_space') {
-        const payload: any = {
-          nama_coworking: formData.nama_member,
-          no_telepon: formData.no_telepon,
-          telp: formData.no_telepon,
-          alamat: formData.alamat,
-        };
-        if (fotoFilename) payload.foto = fotoFilename;
+      const payload: any = {
+        nama_member: formData.nama_member,
+        instansi: formData.instansi,
+        no_telepon: formData.no_telepon,
+        telp: formData.no_telepon,
+        alamat: formData.alamat,
+      };
+      if (fotoFilename) payload.foto = fotoFilename;
 
+      // Panggil API Backend updateProfile (PUT /api/auth/profile)
+      try {
+        await apiClient.updateProfile(payload);
+      } catch (authErr) {
+        console.warn('apiClient.updateProfile fallback:', authErr);
+      }
+
+      if (userRole === 'admin_space') {
         try {
-          await apiClient.updateAdminProfile(payload);
+          await apiClient.updateAdminProfile({
+            nama_coworking: formData.nama_member,
+            no_telepon: formData.no_telepon,
+            telp: formData.no_telepon,
+            alamat: formData.alamat,
+            foto: fotoFilename || undefined,
+          });
         } catch (err) {
           console.warn('API update admin profile warning:', err);
-        }
-      } else if (memberId) {
-        const payload: any = {
-          nama_member: formData.nama_member,
-          instansi: formData.instansi,
-          no_telepon: formData.no_telepon,
-          telp: formData.no_telepon,
-          alamat: formData.alamat,
-        };
-        if (fotoFilename) payload.foto = fotoFilename;
-
-        try {
-          await apiClient.updateMemberProfile(memberId, payload);
-        } catch (err) {
-          console.warn('API update member profile warning:', err);
         }
       }
 
@@ -161,22 +175,63 @@ export default function ProfilePage() {
     }
   };
 
-  const displayName = user.nama_member || user.nama_coworking || user.username || 'User';
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (!passwordData.old_password || !passwordData.new_password) {
+      setPasswordError('Password lama dan password baru wajib diisi.');
+      return;
+    }
+
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      setPasswordError('Konfirmasi password baru tidak cocok.');
+      return;
+    }
+
+    try {
+      setIsPasswordSubmitting(true);
+      // Panggil API Backend updatePassword (PUT /api/auth/change-password)
+      const res = await apiClient.updatePassword({
+        old_password: passwordData.old_password,
+        new_password: passwordData.new_password,
+        password_lama: passwordData.old_password,
+        password_baru: passwordData.new_password,
+      });
+
+      if (res.status !== false) {
+        setPasswordSuccess('Password Anda berhasil diperbarui!');
+        setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+        setShowPasswordForm(false);
+      } else {
+        setPasswordError(res.message || 'Gagal mengubah password.');
+      }
+    } catch (err: any) {
+      setPasswordError(err.response?.data?.message || err.message || 'Terjadi kesalahan saat mengubah password.');
+    } finally {
+      setIsPasswordSubmitting(false);
+    }
+  };
+
+  const displayName = user.nama_member || user.nama_coworking || user.username || 'User Pro';
   const initials = getInitials(displayName);
 
   return (
-    <div className="min-h-screen py-8 bg-slate-50 dark:bg-slate-950">
-      <Container className="max-w-2xl">
-        <Section title="Profil Saya" description="Kelola dan perbarui informasi data akun Anda">
+    <div className="min-h-screen py-8 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      <Container className="max-w-3xl">
+        <Section title="Profil Saya" description="Kelola informasi pribadi dan pengaturan keamanan akun Anda">
           
           {success && <Alert type="success" message={success} dismissible className="mb-6" />}
           {error && <Alert type="error" message={error} dismissible className="mb-6" />}
+          {passwordSuccess && <Alert type="success" message={passwordSuccess} dismissible className="mb-6" />}
+          {passwordError && <Alert type="error" message={passwordError} dismissible className="mb-6" />}
 
-          <Card>
+          <Card className="mb-6">
             <CardContent>
-              {/* Avatar & Name */}
+              {/* Header Avatar */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden flex-shrink-0 relative">
+                <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-indigo-700 flex items-center justify-center text-white text-3xl font-extrabold shadow-lg overflow-hidden flex-shrink-0 relative">
                   {preview && !imgError ? (
                     <img
                       src={preview}
@@ -185,20 +240,23 @@ export default function ProfilePage() {
                       onError={() => setImgError(true)}
                     />
                   ) : (
-                    <span className="font-extrabold tracking-wider">{initials}</span>
+                    <span>{initials}</span>
                   )}
                 </div>
+
                 <div className="text-center sm:text-left flex-1">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{displayName}</h2>
-                  <p className="text-sm text-slate-500">@{user.username}</p>
-                  <span className="inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                    {userRole === 'admin_space' ? 'Admin Space Owner' : 'Member Pro'}
+                  <h2 className="text-2xl font-extrabold font-heading text-slate-900 dark:text-white">
+                    {displayName}
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-400 mt-0.5">@{user.username}</p>
+                  <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-800">
+                    {userRole === 'member' ? 'Member SpaceSync' : 'Space Owner Admin'}
                   </span>
                 </div>
 
                 {!isEditing && (
                   <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
-                    Edit Profil
+                    ✏️ Edit Profil
                   </Button>
                 )}
               </div>
@@ -278,7 +336,7 @@ export default function ProfilePage() {
                   </div>
                 </Form>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Username</p>
@@ -304,7 +362,73 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
+                  {/* Password Toggle Button */}
+                  <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">Keamanan Akun</h4>
+                      <p className="text-xs text-slate-500">Perbarui kata sandi login Anda</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPasswordForm(!showPasswordForm)}
+                    >
+                      {showPasswordForm ? 'Tutup Form Password' : '🔑 Ganti Password'}
+                    </Button>
+                  </div>
+
+                  {/* Password Form */}
+                  {showPasswordForm && (
+                    <Form onSubmit={handlePasswordSubmit} className="space-y-4 p-4 bg-slate-100/70 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                          Password Lama *
+                        </label>
+                        <Input
+                          name="old_password"
+                          type="password"
+                          value={passwordData.old_password}
+                          onChange={handlePasswordChange}
+                          required
+                          placeholder="Masukkan password lama"
+                        />
+                      </div>
+                      <FormRow cols={2}>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                            Password Baru *
+                          </label>
+                          <Input
+                            name="new_password"
+                            type="password"
+                            value={passwordData.new_password}
+                            onChange={handlePasswordChange}
+                            required
+                            placeholder="Password baru (min. 6 karakter)"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                            Konfirmasi Password Baru *
+                          </label>
+                          <Input
+                            name="confirm_password"
+                            type="password"
+                            value={passwordData.confirm_password}
+                            onChange={handlePasswordChange}
+                            required
+                            placeholder="Ulangi password baru"
+                          />
+                        </div>
+                      </FormRow>
+
+                      <Button type="submit" isLoading={isPasswordSubmitting} className="w-full text-xs py-2">
+                        Simpan Password Baru
+                      </Button>
+                    </Form>
+                  )}
+
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex gap-3">
                     <Button variant="outline" onClick={() => router.push(userRole === 'admin_space' ? '/admin/dashboard' : '/dashboard')}>
                       ← Kembali ke Dashboard
                     </Button>
@@ -319,4 +443,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

@@ -34,6 +34,8 @@ export const apiClient = {
   registerAdminSpace: (data: any) => authApi.registerAdminSpace(data),
   login: (username: string, password: string) => authApi.login(username, password),
   getProfile: () => authApi.getProfile(),
+  updateProfile: (data: any) => authApi.updateProfile(data),
+  updatePassword: (data: any) => authApi.updatePassword(data),
   updateMemberProfile: (id: string | number, data: any) => authApi.updateMemberProfile(id, data),
 
   // Spaces & Diskon
@@ -48,7 +50,10 @@ export const apiClient = {
   // Reservations
   createReservation: (data: any) => reservationsApi.createReservation(data),
   getMyReservations: () => reservationsApi.getMyReservations(),
+  getMyActiveReservations: () => reservationsApi.getMyActiveReservations(),
+  getMyHistoryReservations: () => reservationsApi.getMyHistoryReservations(),
   getMyReservationHistory: (month: number, year: number) => reservationsApi.getMyReservationHistory(month, year),
+  getETicket: (id: string) => reservationsApi.getETicket(id),
   getReservationETicket: (id: string) => reservationsApi.getReservationETicket(id),
   getReservationDetail: (id: string) => reservationsApi.getReservationDetail(id),
   cancelReservation: (id: string) => reservationsApi.cancelReservation(id),
@@ -91,6 +96,7 @@ export const apiClient = {
   checkOutReservation: (id: string) => adminApi.checkOutReservation(id),
 
   // Admin Reports
+  getAdminReports: () => adminApi.getAdminReports(),
   getMonthlyReports: (month: number, year: number) => adminApi.getMonthlyReports(month, year),
   getIncomeReports: (month: number, year: number) => adminApi.getIncomeReports(month, year),
 
