@@ -38,11 +38,6 @@ export default function BookingPage() {
   const { data: space } = useApi(() => apiClient.getSpaceDetail(spaceId), isAuthenticated);
   const { data: discounts } = useApi(() => apiClient.getActiveDiskon(), isAuthenticated);
 
-  const { data: diskonDetail } = useApi(
-    () => apiClient.getDiskonDetail(formData.id_diskon),
-    isAuthenticated && !!formData.id_diskon
-  );
-
   const selectedDiscount = discounts?.find((d: any) => String(d.id) === String(formData.id_diskon));
   const totalPrice = calculateTotalPrice(
     space?.harga_per_jam || 0,
@@ -64,7 +59,7 @@ export default function BookingPage() {
       } else {
         throw new Error(checkRes.message || 'Kode promo tidak valid');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       const matched = discounts?.find(
         (d: any) =>
           (d.nama_diskon && String(d.nama_diskon).toLowerCase() === trimmed.toLowerCase()) ||
@@ -76,8 +71,9 @@ export default function BookingPage() {
         setFormData((prev) => ({ ...prev, id_diskon: String(matched.id) }));
         setPromoError('');
       } else {
+        const msg = e instanceof Error ? e.message : 'Kode promo tidak valid atau telah kadaluarsa';
         setFormData((prev) => ({ ...prev, id_diskon: '' }));
-        setPromoError(e.message || 'Kode promo tidak valid atau telah kadaluarsa');
+        setPromoError(msg);
       }
     }
   };
@@ -116,8 +112,8 @@ export default function BookingPage() {
           setIsSubmitting(false);
           return;
         }
-      } catch (availErr) {
-        console.warn('getSpaceAvailability check warning:', availErr);
+      } catch {
+        // Fallthrough if availability check fails gracefully
       }
 
       const response = await apiClient.createReservation({
@@ -265,25 +261,25 @@ export default function BookingPage() {
               <CardContent>
                 {/* Space Info */}
                 <div className="mb-6">
-                  <p className="text-gray-600 text-sm mb-2">Ruangan</p>
-                  <p className="font-bold text-lg text-gray-900">{space?.nama_space}</p>
-                  <p className="text-sm text-gray-600">{space?.tipe_space}</p>
+                  <p className="text-slate-500 text-sm mb-1 font-medium">Ruangan</p>
+                  <p className="font-bold text-lg text-slate-900">{space?.nama_space}</p>
+                  <p className="text-sm text-indigo-600 font-semibold">{space?.tipe_space}</p>
                 </div>
 
                 {/* Details */}
-                <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
+                <div className="space-y-3 mb-6 pb-6 border-b border-slate-200">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Harga/Jam:</span>
-                    <span className="font-semibold">
+                    <span className="text-slate-600">Harga/Jam:</span>
+                    <span className="font-semibold text-slate-900">
                       {formatCurrency(space?.harga_per_jam || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Durasi:</span>
-                    <span className="font-semibold">{formData.durasi_jam} jam</span>
+                    <span className="text-slate-600">Durasi:</span>
+                    <span className="font-semibold text-slate-900">{formData.durasi_jam} jam</span>
                   </div>
                   {selectedDiscount && (
-                    <div className="flex justify-between text-sm text-green-600">
+                    <div className="flex justify-between text-sm text-emerald-600">
                       <span>Diskon ({selectedDiscount.persentase_diskon}%):</span>
                       <span className="font-semibold">
                         -{formatCurrency(
@@ -297,9 +293,9 @@ export default function BookingPage() {
                 </div>
 
                 {/* Total */}
-                <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                  <p className="text-gray-600 text-sm mb-1">Total Harga</p>
-                  <p className="text-3xl font-bold text-blue-600">
+                <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-6">
+                  <p className="text-slate-600 text-xs font-semibold uppercase tracking-wider mb-1">Total Harga</p>
+                  <p className="text-3xl font-extrabold text-indigo-600">
                     {formatCurrency(totalPrice)}
                   </p>
                 </div>
@@ -307,11 +303,11 @@ export default function BookingPage() {
                 {/* Facilities */}
                 {space?.fasilitas && (
                   <div>
-                    <p className="text-gray-600 text-sm mb-2 font-semibold">Fasilitas:</p>
-                    <ul className="space-y-1">
+                    <p className="text-slate-700 text-sm mb-2 font-semibold">Fasilitas Ruangan:</p>
+                    <ul className="space-y-1.5">
                       {space.fasilitas.split(',').map((fac: string, idx: number) => (
-                        <li key={idx} className="text-sm text-gray-600 flex items-center">
-                          <span className="w-1.5 h-1.5 bg-blue-600 rounded-full mr-2"></span>
+                        <li key={idx} className="text-sm text-slate-600 flex items-center">
+                          <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2.5 shrink-0"></span>
                           {fac.trim()}
                         </li>
                       ))}
