@@ -11,6 +11,13 @@ import { Input, Select } from '@/components/Form';
 import Link from 'next/link';
 import { formatCurrency, getImageUrl } from '@/lib/utils';
 
+function isTestVendor(coworkingName: string, ownerName: string): boolean {
+  const name = (coworkingName || '').toLowerCase();
+  const owner = (ownerName || '').toLowerCase();
+  const testKeywords = ['test', 'seeder', 'qa ', 'probe', 'direct upload', 'dlida', 't9wg', 'o94w', 'am9r', '4781', '16147', 'filename'];
+  return testKeywords.some((kw) => name.includes(kw) || owner.includes(kw));
+}
+
 function SpacesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,6 +33,7 @@ function SpacesContent() {
 
   const [activeTab, setActiveTab] = useState<'vendors' | 'all_spaces'>('vendors');
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(initialVendor);
+  const [filterCategory, setFilterCategory] = useState<'all' | 'moklet_only'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('');
 
@@ -45,7 +53,7 @@ function SpacesContent() {
     return [];
   }, [rawSpaces]);
 
-  // Group spaces by vendor (owner)
+  // Group spaces by vendor (owner) excluding junk test/seeder data
   const vendorsMap = useMemo(() => {
     const map: Record<string, {
       id: string;
@@ -62,6 +70,12 @@ function SpacesContent() {
       const ownerId = String(space.id_owner || space.owner?.id || 'default');
       const ownerName = space.owner?.nama_coworking || space.owner?.nama_pemilik || `Coworking Space #${ownerId}`;
       const ownerPemilik = space.owner?.nama_pemilik || '-';
+
+      // Skip test/seeder junk vendors automatically
+      if (isTestVendor(ownerName, ownerPemilik)) {
+        return;
+      }
+
       const ownerTelp = space.owner?.telp || space.owner?.no_telepon || '-';
       const ownerAlamat = space.owner?.alamat || space.alamat || '-';
       const ownerFoto = space.owner?.foto || space.owner?.foto_url || space.foto_url || space.foto;
@@ -95,20 +109,38 @@ function SpacesContent() {
 
   // Filtered Vendors (Level 1)
   const filteredVendors = useMemo(() => {
-    if (!searchQuery) return vendorsList;
-    const q = searchQuery.toLowerCase();
-    return vendorsList.filter((v) =>
-      v.nama_coworking.toLowerCase().includes(q) ||
-      v.nama_pemilik.toLowerCase().includes(q) ||
-      v.alamat.toLowerCase().includes(q)
-    );
-  }, [vendorsList, searchQuery]);
+    let list = vendorsList;
+
+    if (filterCategory === 'moklet_only') {
+      list = list.filter((v) => v.nama_coworking.toLowerCase().includes('moklet'));
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((v) =>
+        v.nama_coworking.toLowerCase().includes(q) ||
+        v.nama_pemilik.toLowerCase().includes(q) ||
+        v.alamat.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [vendorsList, filterCategory, searchQuery]);
 
   // Filtered Spaces for Level 2 (Selected Vendor or All Spaces)
   const filteredSpaces = useMemo(() => {
-    let source = spaces;
+    let source = spaces.filter((s: any) => {
+      const coworkingName = s.owner?.nama_coworking || s.nama_space || '';
+      const ownerName = s.owner?.nama_pemilik || '';
+      return !isTestVendor(coworkingName, ownerName);
+    });
+
     if (selectedVendorId && currentVendor) {
       source = currentVendor.spaces;
+    } else if (filterCategory === 'moklet_only') {
+      source = source.filter((s: any) =>
+        (s.owner?.nama_coworking || s.nama_space || '').toLowerCase().includes('moklet')
+      );
     }
 
     return source.filter((space: any) => {
@@ -120,7 +152,7 @@ function SpacesContent() {
       const matchType = selectedType ? String(space.tipe_space) === String(selectedType) : true;
       return matchSearch && matchType;
     });
-  }, [spaces, selectedVendorId, currentVendor, searchQuery, selectedType]);
+  }, [spaces, selectedVendorId, currentVendor, filterCategory, searchQuery, selectedType]);
 
   const typeOptions =
     types?.map((type: any) => ({
@@ -129,7 +161,7 @@ function SpacesContent() {
     })) || [];
 
   return (
-    <div className="min-h-screen py-8 md:py-12 relative overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen py-6 sm:py-10 relative overflow-hidden bg-slate-50 dark:bg-slate-950">
       {/* Background Mesh */}
       <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-indigo-500/10 via-violet-500/5 to-transparent -z-10" />
 
@@ -153,16 +185,16 @@ function SpacesContent() {
         />
 
         {/* Level Toggle & Filter Panel */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/5 rounded-2xl p-4 mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/5 rounded-2xl p-4 mb-8 flex flex-col lg:flex-row gap-4 items-center justify-between">
           
           {/* View Tab Buttons */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full lg:w-auto">
             <button
               onClick={() => {
                 setActiveTab('vendors');
                 setSelectedVendorId(null);
               }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'vendors' && !selectedVendorId
                   ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -175,18 +207,31 @@ function SpacesContent() {
                 setActiveTab('all_spaces');
                 setSelectedVendorId(null);
               }}
-              className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'all_spaces' && !selectedVendorId
                   ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              🚪 Semua Unit Ruangan ({spaces.length})
+              🚪 Semua Unit Ruangan ({filteredSpaces.length})
+            </button>
+            <button
+              onClick={() => {
+                setFilterCategory(filterCategory === 'all' ? 'moklet_only' : 'all');
+                setSelectedVendorId(null);
+              }}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
+                filterCategory === 'moklet_only'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                  : 'border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200/50'
+              }`}
+            >
+              ⭐ {filterCategory === 'moklet_only' ? 'Tampil: Moklet Hub' : 'Filter Moklet Hub'}
             </button>
           </div>
 
           {/* Search & Select Controls */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1 max-w-xl">
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1 max-w-xl">
             <div className="flex-1">
               <Input
                 placeholder={
@@ -216,15 +261,16 @@ function SpacesContent() {
               </div>
             )}
 
-            {(searchQuery || selectedType || selectedVendorId) && (
+            {(searchQuery || selectedType || selectedVendorId || filterCategory !== 'all') && (
               <Button
                 variant="outline"
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedType('');
                   setSelectedVendorId(null);
+                  setFilterCategory('all');
                 }}
-                className="text-xs"
+                className="text-xs shrink-0"
               >
                 Reset
               </Button>
@@ -232,13 +278,14 @@ function SpacesContent() {
           </div>
         </div>
 
-        {/* Vendor Banner if Vendor is Selected (Level 2 Active) */}
+        {/* Responsive Vendor Banner if Vendor is Selected (Level 2 Active) */}
         {selectedVendorId && currentVendor && (
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white mb-10 shadow-2xl relative overflow-hidden border border-slate-800">
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 sm:p-8 text-white mb-10 shadow-2xl relative overflow-hidden border border-slate-800">
             <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-            <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between relative z-10">
-              <div className="flex items-center gap-5">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/10 border border-white/20 overflow-hidden flex-shrink-0 relative shadow-lg">
+            
+            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between relative z-10">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 min-w-0 flex-1">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white/10 border border-white/20 overflow-hidden shrink-0 shadow-lg relative">
                   <img
                     src={getImageUrl(currentVendor.foto, 'space')}
                     alt={currentVendor.nama_coworking}
@@ -249,28 +296,29 @@ function SpacesContent() {
                     }}
                   />
                 </div>
-                <div>
+
+                <div className="min-w-0 flex-1">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 mb-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     Verified Coworking Partner
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-black font-heading tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-black font-heading tracking-tight break-words">
                     {currentVendor.nama_coworking}
                   </h2>
-                  <p className="text-sm text-slate-300 mt-1 flex flex-wrap items-center gap-4">
-                    <span>👤 Pemilik: <strong className="text-white">{currentVendor.nama_pemilik}</strong></span>
+                  <div className="text-xs sm:text-sm text-slate-300 mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span className="bg-white/10 px-2.5 py-1 rounded-lg">👤 Pemilik: <strong className="text-white">{currentVendor.nama_pemilik}</strong></span>
                     {currentVendor.telp && currentVendor.telp !== '-' && (
-                      <span>📞 Telp: <strong className="text-white">{currentVendor.telp}</strong></span>
+                      <span className="bg-white/10 px-2.5 py-1 rounded-lg">📞 Telp: <strong className="text-white">{currentVendor.telp}</strong></span>
                     )}
-                    <span>🚪 Total Unit: <strong className="text-indigo-300">{currentVendor.spaces.length} Ruangan</strong></span>
-                  </p>
+                    <span className="bg-indigo-500/30 text-indigo-200 px-2.5 py-1 rounded-lg">🚪 Total: <strong className="text-white">{currentVendor.spaces.length} Ruangan</strong></span>
+                  </div>
                 </div>
               </div>
 
               <Button
                 variant="secondary"
                 onClick={() => setSelectedVendorId(null)}
-                className="w-full md:w-auto shadow-md"
+                className="w-full lg:w-auto shrink-0 shadow-md text-xs sm:text-sm py-3 px-5 whitespace-nowrap"
               >
                 ← Pilih Coworking Space Lain
               </Button>
@@ -292,7 +340,7 @@ function SpacesContent() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>🏢 Penyedia Coworking Space</span>
+                <span>🏢 Penyedia Coworking Space Real</span>
                 <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2.5 py-0.5 rounded-full">
                   {filteredVendors.length} Lokasi
                 </span>
