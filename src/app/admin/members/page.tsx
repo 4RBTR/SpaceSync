@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
 import { apiClient } from '@/lib/api';
-import { Container, Card, CardHeader, CardTitle, CardContent, Section } from '@/components/Layout';
+import { Container, Card, Section } from '@/components/Layout';
 import { Input } from '@/components/Form';
 import { Button, IconButton } from '@/components/Button';
 import Link from 'next/link';
@@ -23,21 +23,65 @@ export default function AdminMembersPage() {
   const router = useRouter();
   const { isAuthenticated, userRole } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [filterScope, setFilterScope] = useState<'all' | 'customers_only'>('customers_only');
 
-  const { data: membersRes, isLoading, execute: refetch } = useApi(
-    () => apiClient.getAdminMembers(currentPage, 10),
+  // Fetch registered members
+  const { data: membersRes, isLoading: membersLoading, execute: refetch } = useApi(
+    () => apiClient.getAdminMembers(1, 100),
     isAuthenticated && userRole === 'admin_space'
   );
 
-  const membersList = extractArray(membersRes);
+  // Fetch admin reservations to determine customer members
+  const { data: reservationsRes, isLoading: resLoading } = useApi(
+    () => apiClient.getAdminReservations(),
+    isAuthenticated && userRole === 'admin_space'
+  );
 
-  const filteredMembers =
-    membersList.filter((m: any) =>
-      m.nama_member?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.username?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const membersList = useMemo(() => extractArray(membersRes), [membersRes]);
+  const reservationsList = useMemo(() => extractArray(reservationsRes), [reservationsRes]);
+
+  // Build a map of member IDs / usernames to reservation count in this space
+  const memberReservationsMap = useMemo(() => {
+    const map: Record<string, number> = {};
+
+    reservationsList.forEach((r: any) => {
+      const userId = String(r.id_user || r.user?.id || r.member?.id || '');
+      const username = String(r.user?.username || r.member?.username || r.nama_member || '');
+
+      if (userId && userId !== 'undefined') {
+        map[userId] = (map[userId] || 0) + 1;
+      }
+      if (username) {
+        map[username.toLowerCase()] = (map[username.toLowerCase()] || 0) + 1;
+      }
+    });
+
+    return map;
+  }, [reservationsList]);
+
+  // Filtered members list
+  const filteredMembers = useMemo(() => {
+    return membersList.filter((m: any) => {
+      const memberId = String(m.id);
+      const usernameKey = String(m.username || m.nama_member || '').toLowerCase();
+      const bookingCount = memberReservationsMap[memberId] || memberReservationsMap[usernameKey] || 0;
+      const isCustomer = bookingCount > 0;
+
+      if (filterScope === 'customers_only' && !isCustomer) {
+        return false;
+      }
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchName = m.nama_member?.toLowerCase().includes(q);
+        const matchEmail = m.email?.toLowerCase().includes(q) || m.username?.toLowerCase().includes(q);
+        const matchInstansi = m.instansi?.toLowerCase().includes(q);
+        return matchName || matchEmail || matchInstansi;
+      }
+
+      return true;
+    });
+  }, [membersList, memberReservationsMap, filterScope, searchQuery]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus member ini?')) {
@@ -50,146 +94,158 @@ export default function AdminMembersPage() {
     }
   };
 
+  const isLoading = membersLoading || resLoading;
+
   return (
-    <div className="min-h-screen py-8">
+    <div className="min-h-screen py-8 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Container>
-        <Section title="Kelola Members" description="Atur data member/pengunjung Anda">
-          {/* Actions */}
-          <div className="flex justify-between items-center mb-6">
-            <Input
-              placeholder="Cari member..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="max-w-xs"
-            />
-            <Link href="/admin/members/add">
-              <Button>Tambah Member</Button>
-            </Link>
+        <Section title="Kelola Members & Pengunjung Space" description="Daftar member dan penyewa ruangan Coworking Space Anda">
+          
+          {/* Action & Filter Toolbar */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 mb-6 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+            
+            {/* Scope Filter Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-auto">
+              <button
+                onClick={() => setFilterScope('customers_only')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  filterScope === 'customers_only'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                👥 Penyewa Space Saya ({membersList.filter((m: any) => (memberReservationsMap[String(m.id)] || memberReservationsMap[String(m.username || '').toLowerCase()] || 0) > 0).length})
+              </button>
+              <button
+                onClick={() => setFilterScope('all')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  filterScope === 'all'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                🌐 Semua Member Platform ({membersList.length})
+              </button>
+            </div>
+
+            {/* Search Input & Add Member */}
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <Input
+                placeholder="Cari nama, username, instansi..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="text-xs bg-slate-50 dark:bg-slate-800"
+              />
+              <Link href="/admin/members/add">
+                <Button className="text-xs flex-shrink-0">
+                  + Tambah Member
+                </Button>
+              </Link>
+            </div>
           </div>
 
-          {/* Members Table */}
-          <Card>
+          {/* Members Table Card */}
+          <Card className="p-0 overflow-hidden border-slate-200 dark:border-slate-800">
             {isLoading ? (
-              <div className="text-center py-8">
-                <p className="text-gray-600">Memuat data members...</p>
+              <div className="text-center py-16">
+                <svg className="animate-spin mx-auto h-8 w-8 text-indigo-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p className="text-slate-500 font-medium text-xs">Memuat data members...</p>
               </div>
             ) : filteredMembers.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="text-left px-6 py-3 font-semibold text-gray-900">Nama</th>
-                      <th className="text-left px-6 py-3 font-semibold text-gray-900">Username / Email</th>
-                      <th className="text-left px-6 py-3 font-semibold text-gray-900">No. Telepon</th>
-                      <th className="text-left px-6 py-3 font-semibold text-gray-900">Instansi</th>
-                      <th className="text-center px-6 py-3 font-semibold text-gray-900">Aksi</th>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-bold text-xs uppercase tracking-wider">
+                      <th className="px-6 py-4">Nama Member</th>
+                      <th className="px-6 py-4">Username / Email</th>
+                      <th className="px-6 py-4">No. Telepon</th>
+                      <th className="px-6 py-4">Instansi</th>
+                      <th className="px-6 py-4">Status Transaksi</th>
+                      <th className="px-6 py-4 text-center">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {filteredMembers.map((member: any) => (
-                      <tr
-                        key={member.id}
-                        className="border-b border-gray-200 hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-4 font-medium text-gray-900">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-xs overflow-hidden flex-shrink-0 border border-indigo-200/50">
-                              {member.foto_url || member.foto ? (
-                                <img
-                                  src={getImageUrl(member.foto_url || member.foto, 'avatar')}
-                                  alt={member.nama_member}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                getInitials(member.nama_member || 'Member')
-                              )}
-                            </div>
-                            <span className="font-semibold">{member.nama_member}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">{member.username || member.email || '-'}</td>
-                        <td className="px-6 py-4 text-gray-600">
-                          {member.telp || member.no_telepon || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-gray-600">{member.instansi || '-'}</td>
-                        <td className="px-6 py-4 text-center">
-                          <div className="flex justify-center gap-2">
-                            <Link href={`/admin/members/${member.id}`}>
-                              <IconButton
-                                size="sm"
-                                icon={
-                                  <svg
-                                    className="w-5 h-5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                    />
-                                  </svg>
-                                }
-                              />
-                            </Link>
-                            <IconButton
-                              size="sm"
-                              variant="outline"
-                              icon={
-                                <svg
-                                  className="w-5 h-5 text-red-600"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {filteredMembers.map((member: any) => {
+                      const memberId = String(member.id);
+                      const usernameKey = String(member.username || member.nama_member || '').toLowerCase();
+                      const bookingCount = memberReservationsMap[memberId] || memberReservationsMap[usernameKey] || 0;
+
+                      return (
+                        <tr
+                          key={member.id}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-xs overflow-hidden flex-shrink-0 border border-indigo-200/50">
+                                {member.foto_url || member.foto ? (
+                                  <img
+                                    src={getImageUrl(member.foto_url || member.foto, 'avatar')}
+                                    alt={member.nama_member}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
                                   />
-                                </svg>
-                              }
-                              onClick={() => handleDelete(member.id)}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                                ) : (
+                                  getInitials(member.nama_member || 'Member')
+                                )}
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900 dark:text-white block">{member.nama_member}</span>
+                                <span className="text-[10px] text-slate-400">ID: #{member.id}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-medium">{member.username || member.email || '-'}</td>
+                          <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                            {member.telp || member.no_telepon || '-'}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{member.instansi || '-'}</td>
+                          <td className="px-6 py-4">
+                            {bookingCount > 0 ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Penyewa Setia ({bookingCount} Transaksi)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                                Member Platform
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex justify-center gap-2">
+                              <Link href={`/admin/members/${member.id}`}>
+                                <IconButton title="Edit Member" icon="✏️" />
+                              </Link>
+                              <IconButton
+                                onClick={() => handleDelete(member.id)}
+                                title="Hapus Member"
+                                icon="🗑️"
+                                className="text-rose-500 hover:bg-rose-50"
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-600">Tidak ada data member</p>
+              <div className="text-center py-16">
+                <p className="text-slate-500 font-medium text-sm">
+                  {filterScope === 'customers_only'
+                    ? 'Belum ada member yang melakukan transaksi/penyewaan di Coworking Space Anda.'
+                    : 'Tidak ada data member yang ditemukan.'}
+                </p>
               </div>
             )}
           </Card>
-
-          {/* Pagination */}
-          {filteredMembers.length > 0 && (
-            <div className="flex justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-              >
-                Sebelumnya
-              </Button>
-              <span className="px-4 py-2 text-gray-600">Halaman {currentPage}</span>
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(currentPage + 1)}
-              >
-                Selanjutnya
-              </Button>
-            </div>
-          )}
         </Section>
       </Container>
     </div>
