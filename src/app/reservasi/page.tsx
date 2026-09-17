@@ -24,7 +24,16 @@ export default function ReservasiPage() {
   }, [isAuthenticated, authLoading, router]);
 
   const { data: rawReservations, isLoading } = useApi(
-    () => apiClient.getMyActiveReservations(),
+    async () => {
+      try {
+        const res = await apiClient.getMyReservations();
+        const items = Array.isArray(res) ? res : (res as any)?.data;
+        if (Array.isArray(items) && items.length > 0) {
+          return res;
+        }
+      } catch {}
+      return apiClient.getMyActiveReservations();
+    },
     isAuthenticated
   );
 

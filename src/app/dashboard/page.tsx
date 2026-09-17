@@ -21,10 +21,25 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, userRole, router]);
 
-  const { data: reservations, isLoading: reservationsLoading } = useApi(
-    () => apiClient.getMyReservations(),
+  const { data: rawReservations, isLoading: reservationsLoading } = useApi(
+    async () => {
+      try {
+        const res = await apiClient.getMyReservations();
+        const items = Array.isArray(res) ? res : (res as any)?.data;
+        if (Array.isArray(items) && items.length > 0) {
+          return res;
+        }
+      } catch {}
+      return apiClient.getMyActiveReservations();
+    },
     isAuthenticated
   );
+
+  const reservations = Array.isArray(rawReservations)
+    ? rawReservations
+    : Array.isArray((rawReservations as any)?.data)
+    ? (rawReservations as any).data
+    : [];
 
   const { data: stats } = useApi(async () => {
     try {
