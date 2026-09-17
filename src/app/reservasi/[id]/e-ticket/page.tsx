@@ -120,16 +120,16 @@ export default function ETicketPage() {
         </div>
 
         {/* E-Ticket Card Container */}
-        <div ref={printRef} className="print-area bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-200/80">
+        <div ref={printRef} className="print-area bg-white p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-200/80">
           {/* Header */}
-          <div className="text-center mb-6 pb-5 border-b-2 border-indigo-600 flex items-center justify-between">
+          <div className="text-center mb-5 pb-4 border-b-2 border-indigo-600 flex items-center justify-between">
             <div className="flex items-center gap-3 text-left">
               <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md">
                 S
               </div>
               <div>
                 <h1 className="text-xl font-extrabold text-indigo-600 tracking-tight leading-none">SPACESYNC</h1>
-                <p className="text-slate-500 text-[11px] font-medium mt-0.5">Smart Coworking Space System</p>
+                <p className="text-slate-500 text-xs font-medium mt-0.5">Smart Coworking Ecosystem</p>
               </div>
             </div>
             <div className="text-right">
@@ -139,26 +139,26 @@ export default function ETicketPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
+          <div className="grid sm:grid-cols-2 gap-6 mb-6">
             {/* Left - Detail Info */}
-            <div className="space-y-3.5">
+            <div className="space-y-4">
               <div>
-                <p className="text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-0.5">KODE RESERVASI</p>
-                <p className="font-mono text-lg font-bold text-indigo-600 break-all">
+                <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-0.5">KODE RESERVASI</p>
+                <p className="font-mono text-xl font-bold text-indigo-600 break-all">
                   #RES-{reservation.id}
                 </p>
               </div>
 
               <div>
-                <p className="text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-0.5">RUANGAN</p>
-                <p className="text-base font-bold text-slate-900 leading-snug">
+                <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-0.5">RUANGAN</p>
+                <p className="text-lg font-bold text-slate-900 leading-snug">
                   {spaceObj?.nama_space || reservation.nama_space || 'Ruangan Coworking'}
                 </p>
                 <p className="text-xs text-indigo-600 font-semibold capitalize">{spaceObj?.tipe_space || spaceObj?.tipe || 'Coworking Space'}</p>
               </div>
 
               <div>
-                <p className="text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-0.5">PEMESAN / PELANGGAN</p>
+                <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-0.5">PEMESAN / PELANGGAN</p>
                 <p className="text-base font-bold text-slate-900">
                   {reservation.member?.nama_member || 'Member SpaceSync'}
                 </p>
@@ -166,28 +166,28 @@ export default function ETicketPage() {
 
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
                 <div>
-                  <p className="text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-0.5">TANGGAL</p>
-                  <p className="font-bold text-slate-900 text-xs">
+                  <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-0.5">TANGGAL</p>
+                  <p className="font-bold text-slate-900 text-sm">
                     {formatDate(reservation.tanggal_reservasi)}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     {getDayName(reservation.tanggal_reservasi)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-0.5">JAM MULAI</p>
-                  <p className="font-bold text-slate-900 text-xs">{reservation.jam_mulai || '10:00'} WIB</p>
+                  <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-0.5">JAM MULAI</p>
+                  <p className="font-bold text-slate-900 text-sm">{reservation.jam_mulai || '10:00'} WIB</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-0.5">DURASI</p>
-                  <p className="font-bold text-slate-900 text-xs">{reservation.durasi_jam || 1} jam</p>
+                  <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-0.5">DURASI</p>
+                  <p className="font-bold text-slate-900 text-sm">{reservation.durasi_jam || 1} jam</p>
                 </div>
                 <div>
-                  <p className="text-slate-400 text-[10px] font-bold tracking-wider uppercase mb-0.5">TOTAL BIAYA</p>
-                  <p className="font-extrabold text-emerald-600 text-xs font-sans">
+                  <p className="text-slate-400 text-xs font-bold tracking-wider uppercase mb-0.5">TOTAL BIAYA</p>
+                  <p className="font-extrabold text-emerald-600 text-sm font-sans">
                     {formatCurrency(totalBiaya)}
                   </p>
                 </div>
@@ -195,8 +195,8 @@ export default function ETicketPage() {
             </div>
 
             {/* Right - QR Code */}
-            <div className="flex flex-col items-center justify-center bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
-              <div className="p-2.5 bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col items-center justify-center bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
+              <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
                 <QRCodeSVG
                   id="qr-code-svg"
                   value={JSON.stringify({
@@ -206,12 +206,12 @@ export default function ETicketPage() {
                     time: reservation.jam_mulai,
                     member: reservation.member?.nama_member,
                   })}
-                  size={150}
+                  size={160}
                   level="H"
                   includeMargin
                 />
               </div>
-              <p className="text-center text-[11px] font-semibold text-slate-600 mt-3">
+              <p className="text-center text-xs font-semibold text-slate-600 mt-3">
                 Scan QR code untuk check-in di lokasi
               </p>
             </div>
@@ -219,25 +219,25 @@ export default function ETicketPage() {
 
           {/* Footer Metadata */}
           <div className="pt-4 border-t border-slate-200">
-            <div className="grid grid-cols-3 gap-3 text-xs text-slate-600 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-600 mb-4">
               <div>
-                <p className="font-bold text-slate-900 text-[11px] mb-0.5">LOKASI COWORKING</p>
+                <p className="font-bold text-slate-900 text-xs mb-0.5">LOKASI COWORKING</p>
                 <p className="font-semibold text-slate-800 text-xs">{reservation.owner?.nama_coworking || spaceObj?.coworking_space?.nama_coworking || 'SpaceSync Partner'}</p>
-                <p className="text-[10px] text-slate-500 line-clamp-2">
+                <p className="text-xs text-slate-500 line-clamp-2">
                   {reservation.owner?.alamat || spaceObj?.coworking_space?.alamat || 'Lokasi Coworking'}
                 </p>
               </div>
               <div>
-                <p className="font-bold text-slate-900 text-[11px] mb-0.5">KONTAK VENDOR</p>
+                <p className="font-bold text-slate-900 text-xs mb-0.5">KONTAK VENDOR</p>
                 <p className="font-semibold text-slate-800 text-xs">{reservation.owner?.telp || spaceObj?.coworking_space?.no_telepon || '-'}</p>
               </div>
               <div>
-                <p className="font-bold text-slate-900 text-[11px] mb-0.5">STATUS RESERVASI</p>
+                <p className="font-bold text-slate-900 text-xs mb-0.5">STATUS RESERVASI</p>
                 <p className="font-extrabold text-indigo-600 text-xs">{statusLabel}</p>
               </div>
             </div>
 
-            <div className="bg-indigo-50/70 p-3 rounded-xl text-[11px] text-slate-700 border border-indigo-100">
+            <div className="bg-indigo-50/70 p-3.5 rounded-xl text-xs text-slate-700 border border-indigo-100">
               <p className="font-bold text-indigo-900 mb-1">Catatan Check-In:</p>
               <ul className="list-disc list-inside space-y-0.5 text-slate-700">
                 <li>Harap datang 15 menit sebelum jadwal reservasi dimulai.</li>
@@ -245,7 +245,7 @@ export default function ETicketPage() {
               </ul>
             </div>
 
-            <p className="text-center text-[10px] text-slate-400 mt-4 font-mono">
+            <p className="text-center text-xs text-slate-400 mt-4 font-mono">
               Generated by SpaceSync Ecosystem • {new Date().toLocaleString('id-ID')}
             </p>
           </div>
