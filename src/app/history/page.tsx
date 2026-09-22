@@ -92,12 +92,6 @@ export default function HistoryPage() {
     finalHistoryList = filterByMonthYear(allReservationsList);
   }
 
-  // Step 3: Ultimate fallback if filter yields 0 but user has reservations
-  const isUsingGlobalFallback = finalHistoryList.length === 0 && allReservationsList.length > 0;
-  if (isUsingGlobalFallback) {
-    finalHistoryList = allReservationsList;
-  }
-
   return (
     <div className="min-h-screen py-8">
       <Container>
@@ -139,12 +133,6 @@ export default function HistoryPage() {
               </div>
             </CardContent>
           </Card>
-
-          {isUsingGlobalFallback && (
-            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-medium flex items-center justify-between">
-              <span>Menampilkan seluruh riwayat reservasi Anda ({allReservationsList.length} reservasi ditemukan)</span>
-            </div>
-          )}
 
           {isLoading ? (
             <div className="text-center py-12">

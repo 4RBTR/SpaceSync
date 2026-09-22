@@ -9,7 +9,7 @@ import { Container, Card, CardHeader, CardTitle, CardContent, Section, Grid } fr
 import { Badge } from '@/components/Alert';
 import { Button } from '@/components/Button';
 import Link from 'next/link';
-import { formatDate, formatCurrency, getStatusColor } from '@/lib/utils';
+import { formatDate, formatCurrency, getStatusColor, getReservationPrice } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -41,23 +41,13 @@ export default function DashboardPage() {
     ? (rawReservations as any).data
     : [];
 
-  const { data: stats } = useApi(async () => {
-    try {
-      const response = await apiClient.getMakerStats();
-      return response;
-    } catch {
-      return {
-        status: true,
-        statusCode: 200,
-        message: 'Default stats',
-        data: { total_reservasi: 0, total_pengeluaran: 0 },
-        timestamp: new Date().toISOString(),
-      } as const;
-    }
-  }, isAuthenticated);
+  const totalReservasi = reservations.length;
+  const totalPengeluaran = reservations
+    .filter((r: any) => r.status !== 'Dibatalkan' && r.status !== 'dibatalkan')
+    .reduce((sum: number, r: any) => sum + (getReservationPrice(r) || 0), 0);
 
   const upcomingReservations = reservations
-    ?.filter((r: any) => r.status !== 'Dibatalkan' && r.status !== 'Selesai')
+    ?.filter((r: any) => r.status !== 'Dibatalkan' && r.status !== 'Selesai' && r.status !== 'dibatalkan' && r.status !== 'selesai')
     .slice(0, 5) || [];
 
   return (
@@ -70,7 +60,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-gray-600 text-sm mb-2">Total Reservasi</p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {stats?.total_reservasi || 0}
+                    {totalReservasi}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -85,8 +75,8 @@ export default function DashboardPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-gray-600 text-sm mb-2">Total Pengeluaran</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {formatCurrency(stats?.total_pengeluaran || 0)}
+                  <p className="text-3xl font-bold text-emerald-600 font-sans">
+                    {formatCurrency(totalPengeluaran)}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">

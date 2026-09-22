@@ -250,22 +250,6 @@ export default function ETicketPage() {
             </p>
           </div>
         </div>
-
-        {/* Non-Print Actions Footer (Hidden on Print) */}
-        <div className="no-print flex gap-3 mt-6 flex-wrap">
-          <Button onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            Cetak / Download PDF
-          </Button>
-          <Button variant="secondary" onClick={handleDownload}>
-            Download QR Code
-          </Button>
-          <Link href={`/reservasi/${reservationId}`} className="ml-auto">
-            <Button variant="outline">Kembali</Button>
-          </Link>
-        </div>
       </Container>
     </div>
   );

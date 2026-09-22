@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
@@ -26,16 +26,49 @@ export default function AdminReservasiPage() {
   const [qrSuccess, setQrSuccess] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
-  const { data: reservations, isLoading, execute: refetch } = useApi(
+  const { data: rawReservations, isLoading, execute: refetch } = useApi(
     () =>
       apiClient.getAdminReservations({
         status: selectedStatus || undefined,
         month: month ? parseInt(month) : undefined,
         year: year ? parseInt(year) : undefined,
-        limit: 50,
+        limit: 100,
       }),
     isAuthenticated && userRole === 'admin_space'
   );
+
+  useEffect(() => {
+    if (isAuthenticated && userRole === 'admin_space') {
+      refetch();
+    }
+  }, [selectedStatus, month, year, isAuthenticated, userRole, refetch]);
+
+  const rawList = Array.isArray(rawReservations)
+    ? rawReservations
+    : Array.isArray((rawReservations as any)?.data)
+    ? (rawReservations as any).data
+    : [];
+
+  const filteredReservations = rawList.filter((r: any) => {
+    if (selectedStatus) {
+      const sLabel = formatStatusLabel(r.status);
+      const isPendingMatch = selectedStatus === 'Belum Dikonfirmasi' && (r.status === 'belum_dikonfirm' || r.status === 'pending' || r.status === 'Belum Dikonfirmasi');
+      if (sLabel !== selectedStatus && r.status !== selectedStatus && !isPendingMatch) {
+        return false;
+      }
+    }
+    if (month && r.tanggal_reservasi) {
+      const parts = String(r.tanggal_reservasi).substring(0, 10).split('-');
+      const rMonth = parseInt(parts[1], 10);
+      if (rMonth !== parseInt(month, 10)) return false;
+    }
+    if (year && r.tanggal_reservasi) {
+      const parts = String(r.tanggal_reservasi).substring(0, 10).split('-');
+      const rYear = parseInt(parts[0], 10);
+      if (rYear !== parseInt(year, 10)) return false;
+    }
+    return true;
+  });
 
   const processReservationLookup = (rawText: string) => {
     setQrError('');
@@ -58,7 +91,7 @@ export default function AdminReservasiPage() {
     // Clean #RES- prefix if present
     targetId = targetId.replace(/#RES-/i, '').trim();
 
-    const matched = reservations?.find(
+    const matched = rawList?.find(
       (r: any) => String(r.id) === targetId || String(r.id).includes(targetId)
     );
 
@@ -211,7 +244,7 @@ export default function AdminReservasiPage() {
               <div className="text-center py-8">
                 <p className="text-gray-600">Memuat data reservasi...</p>
               </div>
-            ) : reservations && reservations.length > 0 ? (
+            ) : filteredReservations && filteredReservations.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -240,7 +273,7 @@ export default function AdminReservasiPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reservations.map((reservation: any) => {
+                    {filteredReservations.map((reservation: any) => {
                       const spaceObj = getReservationSpace(reservation);
                       const totalBiaya = getReservationPrice(reservation);
                       return (

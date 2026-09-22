@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useApi } from '@/lib/hooks';
 import { apiClient } from '@/lib/api';
@@ -35,6 +35,14 @@ export default function AdminReportsPage() {
     isAuthenticated && userRole === 'admin_space'
   );
 
+  useEffect(() => {
+    if (isAuthenticated && userRole === 'admin_space') {
+      refetchReservations();
+      refetchMonthly();
+      refetchIncome();
+    }
+  }, [month, year, isAuthenticated, userRole, refetchReservations, refetchMonthly, refetchIncome]);
+
   const handleRefresh = () => {
     refetchReservations();
     refetchMonthly();
@@ -53,11 +61,16 @@ export default function AdminReportsPage() {
 
   const isLoading = monthlyLoading && incomeLoading && reservationsLoading;
 
-  // Filter reservations by selected month & year
-  const filteredReservations = (reservations || []).filter((r: any) => {
+  // Timezone-safe date filtering by month & year
+  const rawList = Array.isArray(reservations) ? reservations : (reservations as any)?.data || [];
+  const filteredReservations = rawList.filter((r: any) => {
     if (!r.tanggal_reservasi) return false;
-    const d = new Date(r.tanggal_reservasi);
-    return d.getMonth() + 1 === month && d.getFullYear() === year;
+    const str = String(r.tanggal_reservasi).substring(0, 10);
+    const parts = str.split('-');
+    if (parts.length < 3) return false;
+    const rYear = parseInt(parts[0], 10);
+    const rMonth = parseInt(parts[1], 10);
+    return rMonth === month && rYear === year;
   });
 
   // Extract report object from backend responses
