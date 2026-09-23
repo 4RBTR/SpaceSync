@@ -1,4 +1,5 @@
 import { axiosClient, ApiResponse } from './client';
+import { uploadApi } from './upload';
 
 class AuthApi {
   async registerMember(data: {
@@ -8,21 +9,35 @@ class AuthApi {
     alamat: string;
     username: string;
     password: string;
-    foto?: File;
+    foto?: File | string | null;
   }): Promise<ApiResponse> {
-    const formData = new FormData();
-    formData.append('nama_member', data.nama_member);
-    formData.append('instansi', data.instansi);
-    formData.append('telp', data.no_telepon);
-    formData.append('alamat', data.alamat);
-    formData.append('username', data.username);
-    formData.append('password', data.password);
-    if (data.foto) {
-      formData.append('foto', data.foto);
+    let fotoUrl: string | undefined = undefined;
+    if (data.foto instanceof File) {
+      try {
+        const uploadRes = await uploadApi.uploadImage(data.foto, 'members');
+        fotoUrl = uploadRes.data?.url || uploadRes.data?.foto_url || uploadRes.data?.path || (typeof uploadRes.data === 'string' ? uploadRes.data : undefined);
+      } catch (e) {
+        console.warn('Gagal mengunggah foto member sebelum registrasi:', e);
+      }
+    } else if (typeof data.foto === 'string') {
+      fotoUrl = data.foto;
+    }
+
+    const payload: any = {
+      nama_member: data.nama_member,
+      instansi: data.instansi || '-',
+      telp: data.no_telepon || '-',
+      no_telepon: data.no_telepon || '-',
+      alamat: data.alamat || '-',
+      username: data.username,
+      password: data.password,
+    };
+    if (fotoUrl) {
+      payload.foto = fotoUrl;
     }
 
     return axiosClient.instance
-      .post('/api/auth/register/member', formData)
+      .post('/api/auth/register/member', payload)
       .then((res) => res.data);
   }
 
@@ -33,21 +48,35 @@ class AuthApi {
     no_telepon: string;
     username: string;
     password: string;
-    foto?: File;
+    foto?: File | string | null;
   }): Promise<ApiResponse> {
-    const formData = new FormData();
-    formData.append('nama_coworking', data.nama_coworking);
-    formData.append('nama_pemilik', data.nama_pemilik);
-    formData.append('alamat', data.alamat);
-    formData.append('telp', data.no_telepon);
-    formData.append('username', data.username);
-    formData.append('password', data.password);
-    if (data.foto) {
-      formData.append('foto', data.foto);
+    let fotoUrl: string | undefined = undefined;
+    if (data.foto instanceof File) {
+      try {
+        const uploadRes = await uploadApi.uploadImage(data.foto, 'general');
+        fotoUrl = uploadRes.data?.url || uploadRes.data?.foto_url || uploadRes.data?.path || (typeof uploadRes.data === 'string' ? uploadRes.data : undefined);
+      } catch (e) {
+        console.warn('Gagal mengunggah foto space sebelum registrasi:', e);
+      }
+    } else if (typeof data.foto === 'string') {
+      fotoUrl = data.foto;
+    }
+
+    const payload: any = {
+      nama_coworking: data.nama_coworking,
+      nama_pemilik: data.nama_pemilik || '-',
+      alamat: data.alamat || '-',
+      telp: data.no_telepon || '-',
+      no_telepon: data.no_telepon || '-',
+      username: data.username,
+      password: data.password,
+    };
+    if (fotoUrl) {
+      payload.foto = fotoUrl;
     }
 
     return axiosClient.instance
-      .post('/api/auth/register/admin-space', formData)
+      .post('/api/auth/register/admin-space', payload)
       .then((res) => res.data);
   }
 
